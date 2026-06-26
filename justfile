@@ -18,6 +18,7 @@ install:
 [group('verify')]
 typecheck:
     npx tsc --noEmit
+    npx tsc --noEmit -p tsconfig.node.json
 
 # run unit tests once
 [group('verify')]
