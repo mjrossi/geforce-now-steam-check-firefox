@@ -141,14 +141,51 @@ States and appearance (approved via mockups):
 - **Feed schema/shape unexpected** → indexer returns empty/partial safely; log
   once; badges fall back to "Couldn't check".
 
-## Testing
+## Language, build & testing
 
-- **TDD (Jest)** on the pure modules: app-ID parser, feed indexer, state
-  resolver — including malformed-URL and malformed-feed cases.
-- **jsdom** tests for the badge renderer (correct state → correct namespaced
-  markup).
+- **TypeScript** throughout. The feed entry is modelled as a type once; the
+  parser/indexer/state-resolver are checked against it (the feed schema is
+  unofficial and has already changed once — types earn their keep here).
+- **esbuild** bundles the TS sources into one classic-script file per injection
+  point: `background`, `store-content`, `wishlist-content`. (Firefox content
+  scripts can't use top-level ES-module `import`, so a bundle step is required
+  regardless of language; esbuild is the smallest fast option.)
+- **Vitest** for unit tests — ESM/TS-native, near-zero config:
+  - **TDD** on the pure modules: app-ID parser, feed indexer, state resolver —
+    including malformed-URL and malformed-feed cases.
+  - **jsdom environment** for the badge renderer (correct state → correct
+    namespaced markup).
 - **Manual verification** on real Steam store + wishlist pages, with Augmented
   Steam installed alongside, confirming no overlap and correct re-injection.
+
+## Dev tooling & project conventions
+
+Mirrors the conventions in the maintainer's other repos (urbanist-atlas,
+mjrossi-portfolio-website). Philosophy: **patch-pin everything, reproducibility
+over convenience.**
+
+- **mise** pins runtimes/tools, using the overlay pattern:
+  - `mise.toml` — committed defaults; `node = "22.x"` (patch-pinned) and
+    `"aqua:casey/just"` pinned.
+  - `mise.development.toml` (`MISE_ENV=development`) — dev overlay (e.g.
+    `web-ext` if managed via mise, otherwise via npm).
+  - `mise.ci.toml` (`MISE_ENV=ci`) — CI overlay.
+  - `mise.local.toml` — gitignored, machine-specific, with a committed
+    `mise.local.toml.example`.
+- **`.nvmrc`** mirrors the mise node version.
+- **`just`** — a `justfile` following the urbanist style: header comment,
+  `set shell := ["bash", "-cu"]`, a `[private] default` recipe running
+  `just --list --unsorted`, and `[group(...)]`/`[doc(...)]`-annotated recipes.
+  Planned recipes: `dev` (web-ext run), `build` (esbuild bundle + manifest copy),
+  `lint` (web-ext lint + tsc --noEmit / eslint), `test` (vitest), `fmt`,
+  `package` (web-ext build → distributable zip).
+- **`web-ext`** (Mozilla official) as a devDependency for run/lint/package.
+- **`.editorconfig`** — LF, final newline, trim trailing whitespace; 2-space for
+  TS/JS/JSON/YAML/CSS/MD, 4-space for `justfile`.
+- **`package.json`** holds the JS-side deps (typescript, esbuild, vitest,
+  web-ext, jsdom) and thin scripts that the justfile recipes call.
+- **GitHub Actions** CI mirroring the local gates (lint, typecheck, test, build)
+  under `MISE_ENV=ci`.
 
 ## Open implementation notes
 
