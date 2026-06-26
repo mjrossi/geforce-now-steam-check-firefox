@@ -1,0 +1,2 @@
+# CI overlay (MISE_ENV=ci, set in .github/workflows/ci.yml).
+[tools]

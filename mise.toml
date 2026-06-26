@@ -1,0 +1,6 @@
+# Pin runtimes/tooling. Install mise (https://mise.jdx.dev), then `mise install`.
+# Overlays: mise.development.toml (MISE_ENV=development), mise.ci.toml
+# (MISE_ENV=ci), mise.local.toml (gitignored, see .example).
+[tools]
+node = "22.22.3"           # patch-pinned: reproducibility > convenience
+"aqua:casey/just" = "1.51.0"
