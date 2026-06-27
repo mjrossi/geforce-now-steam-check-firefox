@@ -11,13 +11,9 @@ against NVIDIA's GeForce NOW catalog and draws a small badge: a green RTX chip w
 title is supported, a neutral marker when it isn't, and a "couldn't check" state when the
 catalog is temporarily unavailable (it never shows a false "not supported").
 
-<!--
-Screenshots (add real images, then uncomment):
-  - docs/screenshots/store-badge.png  — the badge on a Steam store page
-  - docs/screenshots/wishlist-pill.png — the pill overlaid on a wishlist capsule
-![Store page badge](docs/screenshots/store-badge.png)
-![Wishlist pill](docs/screenshots/wishlist-pill.png)
--->
+![A "Playable on GeForce NOW" banner with an RTX chip injected into a Steam store page header](docs/screenshots/store-badge.jpg)
+
+![A Steam wishlist showing a green "GeForce NOW · RTX" pill on a supported game and a "Not available" marker on an unsupported one](docs/screenshots/wishlist-pill.png)
 
 ## Install
 
