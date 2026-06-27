@@ -1,3 +1,9 @@
 # Copy to mise.local.toml (gitignored) for machine-specific overrides.
 # [tools]
 # node = "22.22.3"
+
+# AMO signing credentials for `just sign` (self-distribution).
+# Generate at https://addons.mozilla.org/en-US/developers/addon/api/key/
+# [env]
+# WEB_EXT_API_KEY = "user:12345678:123"      # JWT issuer
+# WEB_EXT_API_SECRET = "abcdef0123456789..." # JWT secret

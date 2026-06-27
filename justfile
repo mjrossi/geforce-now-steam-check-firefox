@@ -54,3 +54,9 @@ dev: build
 [group('build')]
 package: build
     npx web-ext build --source-dir dist --artifacts-dir web-ext-artifacts --overwrite-dest
+
+# sign for self-distribution via AMO; outputs an installable .xpi to web-ext-artifacts/
+# needs WEB_EXT_API_KEY / WEB_EXT_API_SECRET (see mise.local.toml.example)
+[group('build')]
+sign: build
+    npx web-ext sign --source-dir dist --channel unlisted --artifacts-dir web-ext-artifacts
