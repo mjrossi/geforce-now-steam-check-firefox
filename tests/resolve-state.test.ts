@@ -7,6 +7,14 @@ describe("resolveState", () => {
     const res: LookupResponse = { ok: false, found: {} };
     expect(resolveState(620, res)).toEqual({ kind: "unknown" });
   });
+  test("feed error from a transient network failure → unknown", () => {
+    const res: LookupResponse = { ok: false, found: {}, reason: "network" };
+    expect(resolveState(620, res)).toEqual({ kind: "unknown" });
+  });
+  test("feed unavailable because permission not granted → needs-permission", () => {
+    const res: LookupResponse = { ok: false, found: {}, reason: "permission" };
+    expect(resolveState(620, res)).toEqual({ kind: "needs-permission" });
+  });
   test("present in found → supported with rtx flag", () => {
     const res: LookupResponse = { ok: true, found: { "620": { rtx: true } } };
     expect(resolveState(620, res)).toEqual({ kind: "supported", rtx: true });

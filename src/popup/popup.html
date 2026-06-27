@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GeForce NOW check</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        width: 280px;
+        padding: 14px 16px;
+        background: #1b2838;
+        color: #c6d4df;
+        font: 13px/1.45 "Motiva Sans", Arial, Helvetica, sans-serif;
+      }
+      h1 { margin: 0 0 8px; font-size: 14px; color: #fff; }
+      p { margin: 0 0 12px; }
+      .status { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-weight: bold; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+      .dot--on { background: #76b900; }
+      .dot--off { background: #b8860b; }
+      button {
+        width: 100%;
+        padding: 9px 12px;
+        border: 0;
+        border-radius: 4px;
+        background: #76b900;
+        color: #0c1a05;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      button:disabled { background: #3a4654; color: #8a98a6; cursor: default; }
+      .muted { color: #8a98a6; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>GeForce NOW check for Steam</h1>
+    <div class="status">
+      <span id="dot" class="dot dot--off"></span>
+      <span id="status-text">Checking permission…</span>
+    </div>
+    <p id="explain" class="muted">
+      Firefox needs your permission to read NVIDIA's GeForce NOW catalog before
+      badges can appear on Steam pages.
+    </p>
+    <button id="enable" disabled>Enable GeForce NOW checks</button>
+    <script src="popup.js"></script>
+  </body>
+</html>

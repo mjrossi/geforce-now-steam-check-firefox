@@ -2,6 +2,7 @@ import { parseAppId } from "../feed/parse-app-id";
 import { resolveState, type BadgeState } from "../feed/resolve-state";
 import type { LookupRequest, LookupResponse } from "../shared/messages";
 import { ensureStyles, placeAfter, placeBefore, renderStoreBanner } from "../badge/badge";
+import { log } from "../shared/log";
 
 const SLOT_ID = "gfn-check-store-slot";
 // The banner sits right under the game title/header. We try the header anchors
@@ -32,6 +33,7 @@ async function run(): Promise<void> {
   const req: LookupRequest = { type: "gfn-lookup", appIds: [appId] };
   const response = (await browser.runtime.sendMessage(req)) as LookupResponse;
   state = resolveState(appId, response);
+  log.info(`store app ${appId} -> ${state.kind}`);
   paint();
 }
 

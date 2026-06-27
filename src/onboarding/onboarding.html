@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Welcome — GeForce NOW check for Steam</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1b2838;
+        color: #c6d4df;
+        font: 15px/1.5 "Motiva Sans", Arial, Helvetica, sans-serif;
+      }
+      main { max-width: 460px; padding: 32px; }
+      h1 { margin: 0 0 4px; font-size: 22px; color: #fff; }
+      .sub { margin: 0 0 24px; color: #8a98a6; }
+      ol { padding-left: 20px; margin: 0 0 24px; }
+      li { margin-bottom: 8px; }
+      .status { display: flex; align-items: center; gap: 10px; margin: 0 0 20px; font-weight: bold; }
+      .dot { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto; }
+      .dot--on { background: #76b900; }
+      .dot--off { background: #b8860b; }
+      button {
+        padding: 12px 20px;
+        border: 0;
+        border-radius: 5px;
+        background: #76b900;
+        color: #0c1a05;
+        font-size: 15px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      button:disabled { background: #3a4654; color: #8a98a6; cursor: default; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>GeForce NOW check for Steam</h1>
+      <p class="sub">One quick step before you start browsing Steam.</p>
+      <p>
+        To badge Steam games with their GeForce NOW availability, the extension
+        reads NVIDIA's public catalog. Firefox requires you to grant access to
+        that site explicitly:
+      </p>
+      <div class="status">
+        <span id="dot" class="dot dot--off"></span>
+        <span id="status-text">Permission not yet granted</span>
+      </div>
+      <button id="enable">Enable GeForce NOW checks</button>
+      <script src="onboarding.js"></script>
+    </main>
+  </body>
+</html>

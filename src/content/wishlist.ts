@@ -3,6 +3,7 @@ import type { LookupRequest, LookupResponse } from "../shared/messages";
 import { debounce } from "../shared/debounce";
 import { ensureStyles, renderWishlistPill } from "../badge/badge";
 import { findRows, paint } from "./wishlist-rows";
+import { log } from "../shared/log";
 
 async function run(): Promise<void> {
   const rows = findRows(document.body);
@@ -11,6 +12,9 @@ async function run(): Promise<void> {
   const appIds = [...rows.keys()];
   const req: LookupRequest = { type: "gfn-lookup", appIds };
   const response = (await browser.runtime.sendMessage(req)) as LookupResponse;
+  log.info(
+    `wishlist: ${appIds.length} row(s), feed ${response.ok ? "ok" : `unavailable (${response.reason ?? "unknown"})`}`,
+  );
 
   ensureStyles(document);
   paint(document, rows, (appId) =>

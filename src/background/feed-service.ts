@@ -1,6 +1,9 @@
 import type { GfnApp } from "../feed/types";
 import type { LookupRequest, LookupResponse } from "../shared/messages";
 import { loadIndex, type FeedCache, type LoadDeps } from "../feed/feed-cache";
+import { hasFeedPermission } from "../shared/permission";
+import { initPermissionGate } from "./permission-gate";
+import { log } from "../shared/log";
 
 // NVIDIA's GeForce NOW catalog GraphQL API — the source the GFN web app uses.
 // The legacy static `gfnpc-*.json` feed is abandoned and missing large swaths
@@ -70,12 +73,17 @@ const deps: LoadDeps = {
   async fetchFeed() {
     const apps: GfnApp[] = [];
     let after: string | null = null;
+    log.info("fetching GeForce NOW catalog…");
     for (let page = 0; page < MAX_PAGES; page++) {
       const { items, pageInfo }: AppsPage = await fetchAppsPage(after);
       apps.push(...items);
-      if (!pageInfo.hasNextPage || !pageInfo.endCursor) return apps;
+      if (!pageInfo.hasNextPage || !pageInfo.endCursor) {
+        log.info(`catalog fetched: ${apps.length} apps across ${page + 1} page(s)`);
+        return apps;
+      }
       after = pageInfo.endCursor;
     }
+    log.warn(`catalog fetch hit MAX_PAGES (${MAX_PAGES}); using ${apps.length} apps`);
     return apps;
   },
   now: () => Date.now(),
@@ -91,8 +99,12 @@ async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
 
   const result = await loadIndex({ ...deps, forceRefresh });
   if (!result.ok) {
-    if (debug) console.warn("[gfn-check] feed unavailable; lookup ->", req.appIds);
-    return { ok: false, found: {} };
+    // No index and no cache. Distinguish the opt-in host permission not being
+    // granted (the common "works in `web-ext run`, blank when installed" case)
+    // from a transient fetch failure, so the badge can guide the user.
+    const reason = (await hasFeedPermission()) ? "network" : "permission";
+    log.warn(`feed unavailable (${reason}); ${req.appIds.length} id(s) -> unknown`);
+    return { ok: false, found: {}, reason };
   }
   const found: Record<string, { rtx: boolean }> = {};
   for (const appId of req.appIds) {
@@ -100,15 +112,20 @@ async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
     if (hit) found[String(appId)] = hit;
   }
   if (debug) {
-    console.info(`[gfn-check] index size=${Object.keys(result.index).length}`);
+    log.info(`index size=${Object.keys(result.index).length}`);
     for (const appId of req.appIds) {
       const hit = result.index[String(appId)];
-      console.info(
-        `[gfn-check] appId ${appId}: ${hit ? `supported (rtx=${hit.rtx})` : "NOT in index"}`,
-      );
+      log.info(`appId ${appId}: ${hit ? `supported (rtx=${hit.rtx})` : "NOT in index"}`);
     }
   }
   return { ok: true, found };
+}
+
+/** Refresh the feed cache out of band (e.g. right after the user grants the host
+ *  permission) so the next lookup is served from a warm cache. */
+async function warmFeed(): Promise<void> {
+  const result = await loadIndex(deps);
+  log.info(result.ok ? "feed cache warmed" : "feed warm failed (still unavailable)");
 }
 
 browser.runtime.onMessage.addListener((message: unknown): Promise<LookupResponse> | undefined => {
@@ -116,3 +133,10 @@ browser.runtime.onMessage.addListener((message: unknown): Promise<LookupResponse
   if (req?.type !== "gfn-lookup" || !Array.isArray(req.appIds)) return undefined;
   return handleLookup(req as LookupRequest);
 });
+
+// Firefox MV3: host permissions are opt-in and NOT granted on a normal install,
+// so the catalog fetch is blocked until the user enables it via the popup /
+// onboarding tab. This wires the toolbar badge, the cache warm-on-grant, and the
+// first-install onboarding tab.
+initPermissionGate(warmFeed);
+log.info("background ready");

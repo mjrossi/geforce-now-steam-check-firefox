@@ -42,12 +42,15 @@ function modifier(state: BadgeState): "ok" | "no" | "unknown" {
 function bannerLabel(state: BadgeState): string {
   if (state.kind === "supported") return "Playable on GeForce NOW";
   if (state.kind === "not-supported") return "Not on GeForce NOW";
+  if (state.kind === "needs-permission")
+    return "GeForce NOW: click the toolbar icon to enable checks";
   return "GeForce NOW: couldn't check";
 }
 
 function pillLabel(state: BadgeState): string {
   if (state.kind === "supported") return state.rtx ? "GeForce NOW · RTX" : "GeForce NOW";
   if (state.kind === "not-supported") return "Not available";
+  if (state.kind === "needs-permission") return "Enable in toolbar";
   return "Couldn't check";
 }
 

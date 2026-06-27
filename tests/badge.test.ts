@@ -40,6 +40,13 @@ describe("renderStoreBanner", () => {
       "GeForce NOW: couldn't check",
     );
   });
+  test("needs-permission prompts the user to enable from the toolbar", () => {
+    const el = renderStoreBanner(document, { kind: "needs-permission" });
+    expect(el.className).toContain("gfn-check-banner--unknown");
+    expect(el.querySelector(".gfn-check-banner-text")!.textContent).toBe(
+      "GeForce NOW: click the toolbar icon to enable checks",
+    );
+  });
 });
 
 describe("renderWishlistPill", () => {
@@ -51,6 +58,11 @@ describe("renderWishlistPill", () => {
   test("not-supported", () => {
     const el = renderWishlistPill(document, { kind: "not-supported" });
     expect(el.textContent).toContain("Not available");
+  });
+  test("needs-permission", () => {
+    const el = renderWishlistPill(document, { kind: "needs-permission" });
+    expect(el.className).toContain("gfn-check-pill--unknown");
+    expect(el.textContent).toContain("Enable in toolbar");
   });
 });
 
