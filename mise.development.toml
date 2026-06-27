@@ -1,0 +1,3 @@
+# Local dev overlay (MISE_ENV=development). web-ext is an npm devDependency,
+# so nothing extra is pinned here yet — kept for parity with other repos.
+[tools]
