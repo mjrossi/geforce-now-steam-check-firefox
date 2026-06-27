@@ -1,25 +1,30 @@
 /** Namespaced stylesheet for all injected badges. Every selector is prefixed
  *  `gfn-check-` so we never touch markup owned by Steam or other extensions. */
 export const BADGE_CSS = `
-.gfn-check-badge { display:inline-flex; align-items:center; gap:7px; padding:6px 10px;
-  border-radius:4px; font-size:12px; font-family:Arial,Helvetica,sans-serif;
-  box-sizing:border-box; }
-.gfn-check-badge--ok { background:#0c1a05; border:1px solid #76b900; color:#fff; }
-.gfn-check-badge--no, .gfn-check-badge--unknown { background:#171a1d;
-  border:1px solid #3a444d; color:#8f98a0; }
-.gfn-check-dot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
-.gfn-check-badge--ok .gfn-check-dot { background:#76b900; }
-.gfn-check-badge--no .gfn-check-dot, .gfn-check-badge--unknown .gfn-check-dot { background:#5a6b7c; }
-.gfn-check-label { font-weight:bold; }
-.gfn-check-badge--ok .gfn-check-label { color:#76b900; }
-.gfn-check-rtx { margin-left:auto; background:#76b900; color:#000; font-size:9px;
-  font-weight:bold; padding:1px 6px; border-radius:8px; letter-spacing:.5px; }
-.gfn-check-pill { display:inline-flex; align-items:center; gap:5px; font-size:11px;
-  padding:3px 8px; border-radius:10px; white-space:nowrap;
+.gfn-check-banner { display:flex; align-items:center; gap:10px; width:100%;
+  box-sizing:border-box; margin:10px 0; padding:11px 14px; border-radius:6px;
+  border-left:5px solid; font-size:15px; line-height:1.2;
+  font-family:"Motiva Sans",Arial,Helvetica,sans-serif; }
+.gfn-check-banner--ok { background:linear-gradient(90deg,#1c3409,#0c1a05);
+  border-color:#76b900; color:#cdee87; }
+.gfn-check-banner--no { background:#23272c; border-color:#707b85; color:#c6cdd4; }
+.gfn-check-banner--unknown { background:#2a2410; border-color:#b8860b; color:#e6cd84; }
+.gfn-check-banner-logo { width:24px; height:24px; flex:0 0 auto; }
+.gfn-check-banner-logo svg { width:100%; height:100%; display:block; }
+.gfn-check-banner-text { flex:1 1 auto; font-weight:bold; }
+.gfn-check-banner--ok .gfn-check-banner-text { color:#8fd11a; }
+.gfn-check-banner .gfn-check-rtx { flex:0 0 auto; background:#76b900; color:#000;
+  font-size:11px; font-weight:bold; padding:2px 8px; border-radius:9px;
+  letter-spacing:.5px; }
+
+.gfn-check-pill { display:inline-flex; align-items:center; gap:5px; font-size:12px;
+  padding:3px 9px; border-radius:10px; white-space:nowrap; font-weight:bold;
   font-family:Arial,Helvetica,sans-serif; }
-.gfn-check-pill--ok { background:#0c1a05; border:1px solid #76b900; color:#76b900; }
-.gfn-check-pill--no, .gfn-check-pill--unknown { background:#171a1d;
-  border:1px solid #3a444d; color:#8f98a0; }
-.gfn-check-pill .gfn-check-dot { width:6px; height:6px; }
+.gfn-check-pill--ok { background:#0c1a05; border:1px solid #76b900; color:#8fd11a; }
+.gfn-check-pill--no { background:#23272c; border:1px solid #707b85; color:#c6cdd4; }
+.gfn-check-pill--unknown { background:#2a2410; border:1px solid #b8860b; color:#e6cd84; }
+.gfn-check-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
 .gfn-check-pill--ok .gfn-check-dot { background:#76b900; }
+.gfn-check-pill--no .gfn-check-dot { background:#9aa5af; }
+.gfn-check-pill--unknown .gfn-check-dot { background:#b8860b; }
 `;

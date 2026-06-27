@@ -4,3 +4,4 @@ dist/
 web-ext-artifacts/
 mise.local.toml
 *.log
+.vscode/

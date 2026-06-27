@@ -2,8 +2,9 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import {
   ensureStyles,
+  placeAfter,
   placeBefore,
-  renderSidebarBadge,
+  renderStoreBanner,
   renderWishlistPill,
 } from "../src/badge/badge";
 
@@ -12,26 +13,32 @@ beforeEach(() => {
   document.body.innerHTML = "";
 });
 
-describe("renderSidebarBadge", () => {
+describe("renderStoreBanner", () => {
   test("supported + rtx", () => {
-    const el = renderSidebarBadge(document, { kind: "supported", rtx: true });
-    expect(el.className).toContain("gfn-check-badge--ok");
-    expect(el.querySelector(".gfn-check-label")!.textContent).toBe("On GeForce NOW");
+    const el = renderStoreBanner(document, { kind: "supported", rtx: true });
+    expect(el.className).toContain("gfn-check-banner--ok");
+    expect(el.querySelector(".gfn-check-banner-text")!.textContent).toBe(
+      "Playable on GeForce NOW",
+    );
     expect(el.querySelector(".gfn-check-rtx")).not.toBeNull();
   });
   test("supported without rtx omits the RTX chip", () => {
-    const el = renderSidebarBadge(document, { kind: "supported", rtx: false });
+    const el = renderStoreBanner(document, { kind: "supported", rtx: false });
     expect(el.querySelector(".gfn-check-rtx")).toBeNull();
   });
   test("not-supported", () => {
-    const el = renderSidebarBadge(document, { kind: "not-supported" });
-    expect(el.className).toContain("gfn-check-badge--no");
-    expect(el.querySelector(".gfn-check-label")!.textContent).toBe("Not on GeForce NOW");
+    const el = renderStoreBanner(document, { kind: "not-supported" });
+    expect(el.className).toContain("gfn-check-banner--no");
+    expect(el.querySelector(".gfn-check-banner-text")!.textContent).toBe(
+      "Not on GeForce NOW",
+    );
   });
   test("unknown", () => {
-    const el = renderSidebarBadge(document, { kind: "unknown" });
-    expect(el.className).toContain("gfn-check-badge--unknown");
-    expect(el.querySelector(".gfn-check-label")!.textContent).toBe("GeForce NOW: couldn't check");
+    const el = renderStoreBanner(document, { kind: "unknown" });
+    expect(el.className).toContain("gfn-check-banner--unknown");
+    expect(el.querySelector(".gfn-check-banner-text")!.textContent).toBe(
+      "GeForce NOW: couldn't check",
+    );
   });
 });
 
@@ -59,7 +66,7 @@ describe("placeBefore", () => {
   test("inserts before the anchor and is idempotent by id", () => {
     document.body.innerHTML = `<div id="game_area_purchase">buy</div>`;
     const make = () => {
-      const b = renderSidebarBadge(document, { kind: "not-supported" });
+      const b = renderStoreBanner(document, { kind: "not-supported" });
       b.id = "gfn-check-store-slot";
       return b;
     };
@@ -70,9 +77,30 @@ describe("placeBefore", () => {
     expect(anchor.previousElementSibling!.id).toBe("gfn-check-store-slot");
   });
   test("falls back to body when the anchor is missing", () => {
-    const b = renderSidebarBadge(document, { kind: "unknown" });
+    const b = renderStoreBanner(document, { kind: "unknown" });
     b.id = "gfn-check-store-slot";
     expect(placeBefore(document, "#nope", b)).toBe(false);
     expect(document.getElementById("gfn-check-store-slot")).not.toBeNull();
+  });
+});
+
+describe("placeAfter", () => {
+  test("inserts after the anchor and is idempotent by id", () => {
+    document.body.innerHTML = `<div class="apphub_HeaderStandardTop">title</div><div id="next">x</div>`;
+    const make = () => {
+      const b = renderStoreBanner(document, { kind: "supported", rtx: false });
+      b.id = "gfn-check-store-slot";
+      return b;
+    };
+    expect(placeAfter(document, ".apphub_HeaderStandardTop", make())).toBe(true);
+    placeAfter(document, ".apphub_HeaderStandardTop", make());
+    expect(document.querySelectorAll("#gfn-check-store-slot")).toHaveLength(1);
+    const header = document.querySelector(".apphub_HeaderStandardTop")!;
+    expect(header.nextElementSibling!.id).toBe("gfn-check-store-slot");
+  });
+  test("returns false when the anchor is missing", () => {
+    const b = renderStoreBanner(document, { kind: "unknown" });
+    b.id = "gfn-check-store-slot";
+    expect(placeAfter(document, "#nope", b)).toBe(false);
   });
 });

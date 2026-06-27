@@ -1,16 +1,26 @@
-import type { GfnFeedEntry, GfnIndex } from "./types";
+import type { GfnApp, GfnIndex } from "./types";
 import { parseAppId } from "./parse-app-id";
 
-/** Build a lookup index from the raw GFN feed. Only Steam entries with a
- *  parseable app id are kept; the value records the RTX (fully-optimized) flag.
- *  Maintenance/patching titles stay indexed — they are still supported. */
-export function buildIndex(feed: GfnFeedEntry[]): GfnIndex {
+const STEAM = "steam";
+const RTX_FEATURE = "RTX_ENABLED";
+
+/** Build a Steam-app-id → {rtx} index from the GFN catalog. We keep only each
+ *  game's Steam variant (its presence is what guarantees the *Steam* copy is
+ *  playable on GFN) with a parseable app id. `rtx` reflects the per-game
+ *  RTX_ENABLED capability flag. */
+export function buildIndex(apps: GfnApp[]): GfnIndex {
   const index: GfnIndex = {};
-  for (const entry of feed) {
-    if (entry.store !== "Steam") continue;
-    const appId = parseAppId(entry.steamUrl);
-    if (appId === null) continue;
-    index[String(appId)] = { rtx: entry.isFullyOptimized === true };
+  for (const app of apps) {
+    for (const variant of app.variants ?? []) {
+      // Match the store label leniently — it has been seen as "STEAM".
+      if (variant.appStore?.trim().toLowerCase() !== STEAM) continue;
+      const appId = parseAppId(variant.storeUrl ?? "");
+      if (appId === null) continue;
+      const rtx = (variant.gfn?.features ?? []).some(
+        (f) => f.key === RTX_FEATURE && f.value === "true",
+      );
+      index[String(appId)] = { rtx };
+    }
   }
   return index;
 }

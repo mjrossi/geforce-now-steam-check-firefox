@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GeForce NOW check for Steam",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shows whether Steam games are playable on NVIDIA GeForce NOW.",
   "browser_specific_settings": {
     "gecko": {
@@ -11,7 +11,7 @@
     }
   },
   "permissions": ["storage"],
-  "host_permissions": ["https://static.nvidiagrid.net/*"],
+  "host_permissions": ["https://games.geforce.com/*"],
   "background": { "scripts": ["background.js"] },
   "content_scripts": [
     {
