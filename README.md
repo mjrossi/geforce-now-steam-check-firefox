@@ -6,10 +6,14 @@ A Firefox extension that badges Steam store and wishlist pages with NVIDIA
 **GeForce NOW** availability — so you can see whether a game streams on GFN without
 leaving Steam.
 
-When you open a Steam game's store page or your wishlist, the extension checks the game
-against NVIDIA's GeForce NOW catalog and draws a small badge: a green RTX chip when the
-title is supported, a neutral marker when it isn't, and a "couldn't check" state when the
-catalog is temporarily unavailable (it never shows a false "not supported").
+On any Steam game's store page or your wishlist, it checks the title against NVIDIA's
+GeForce NOW catalog and draws a small badge:
+
+- A green *Playable on GeForce NOW* marker (with an RTX chip on RTX-enabled titles) when
+  the game is supported
+- A neutral *Not available* marker when it isn't in the catalog
+- A *couldn't check* state if the catalog is temporarily unreachable — it **never** shows
+  a false "not supported"
 
 ![A "Playable on GeForce NOW" banner with an RTX chip injected into a Steam store page header](docs/screenshots/store-badge.jpg)
 
@@ -29,10 +33,12 @@ catalog is temporarily unavailable (it never shows a false "not supported").
 
 ## Privacy
 
-No data collection, no analytics, no accounts. The only network request is to NVIDIA's
-public GeForce NOW catalog (`https://games.geforce.com/graphql`); the catalog is cached
-locally for 12 hours and nothing about you or your browsing is ever transmitted. See
-[PRIVACY.md](PRIVACY.md) for the full policy.
+> **No data collection, no analytics, no accounts.** The only network request is to
+> NVIDIA's public GeForce NOW catalog (`https://games.geforce.com/graphql`); the catalog
+> is cached locally for 12 hours and nothing about you or your browsing is ever
+> transmitted.
+
+See [PRIVACY.md](PRIVACY.md) for the full policy.
 
 ## How it works
 
