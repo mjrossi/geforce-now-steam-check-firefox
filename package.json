@@ -3,6 +3,17 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
+  "description": "Firefox extension that badges Steam store and wishlist pages with NVIDIA GeForce NOW availability.",
+  "license": "MIT",
+  "author": "mjrossi",
+  "homepage": "https://github.com/mjrossi/geforce-now-steam-check-firefox#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mjrossi/geforce-now-steam-check-firefox.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mjrossi/geforce-now-steam-check-firefox/issues"
+  },
   "scripts": {
     "build": "node build.mjs",
     "test": "vitest run",
