@@ -12,6 +12,8 @@ export interface LoadDeps {
   fetchFeed: () => Promise<GfnFeedEntry[]>;
   now: () => number;
   ttlMs: number;
+  /** When true, ignore a fresh cache and refetch (manual debug refresh). */
+  forceRefresh?: boolean;
 }
 
 export type LoadResult =
@@ -24,7 +26,8 @@ export type LoadResult =
  *  "not supported". */
 export async function loadIndex(deps: LoadDeps): Promise<LoadResult> {
   const cache = await deps.getCache();
-  const fresh = cache !== null && deps.now() - cache.fetchedAt < deps.ttlMs;
+  const fresh =
+    !deps.forceRefresh && cache !== null && deps.now() - cache.fetchedAt < deps.ttlMs;
   if (fresh) return { ok: true, index: cache.index };
 
   try {

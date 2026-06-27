@@ -25,6 +25,14 @@ describe("buildIndex", () => {
     const idx = buildIndex([entry({ store: "Epic", steamUrl: "https://epicgames.com/x" })]);
     expect(Object.keys(idx)).toHaveLength(0);
   });
+  test("matches the store label case/space-insensitively", () => {
+    const idx = buildIndex([
+      entry({ store: "STEAM", steamUrl: "https://store.steampowered.com/app/7" }),
+      entry({ store: " Steam ", steamUrl: "https://store.steampowered.com/app/8" }),
+    ]);
+    expect(idx["7"]).toEqual({ rtx: false });
+    expect(idx["8"]).toEqual({ rtx: false });
+  });
   test("skips entries whose steamUrl has no app id", () => {
     const idx = buildIndex([entry({ steamUrl: "https://store.steampowered.com/" })]);
     expect(Object.keys(idx)).toHaveLength(0);

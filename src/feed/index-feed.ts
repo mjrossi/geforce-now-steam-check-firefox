@@ -7,7 +7,10 @@ import { parseAppId } from "./parse-app-id";
 export function buildIndex(feed: GfnFeedEntry[]): GfnIndex {
   const index: GfnIndex = {};
   for (const entry of feed) {
-    if (entry.store !== "Steam") continue;
+    // Match the store label leniently — the feed has been seen with casing /
+    // whitespace variants ("STEAM", " Steam "). We keep the filter (a Steam
+    // entry is what guarantees the *Steam* copy is playable) but normalize it.
+    if (entry.store?.trim().toLowerCase() !== "steam") continue;
     const appId = parseAppId(entry.steamUrl);
     if (appId === null) continue;
     index[String(appId)] = { rtx: entry.isFullyOptimized === true };

@@ -22,3 +22,19 @@ and inject namespaced (`gfn-check-*`) badges. Data source:
 `https://static.nvidiagrid.net/supported-public-game-list/locales/gfnpc-en-US.json`.
 
 Membership tiers are not shown — the public feed does not expose them.
+
+## Debugging
+
+The background script honors two `browser.storage.local` flags. Set them from
+the extension's background console (`about:debugging` → Inspect):
+
+```js
+// Log every lookup: index size, and hit/miss per app id.
+browser.storage.local.set({ "gfn-debug": true });
+// Force a one-time feed refetch, bypassing the 12 h cache (auto-clears).
+browser.storage.local.set({ "gfn-force-refresh": true });
+```
+
+With `gfn-debug` on, reload a store page (e.g.
+`https://store.steampowered.com/app/1285190/` for Borderlands 4) and check the
+background console to see whether that app id is present in the indexed feed.
