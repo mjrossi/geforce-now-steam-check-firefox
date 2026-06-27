@@ -19,8 +19,11 @@ checked while in beta (uncheck to promote to stable later).
   nothing else genuinely fits, and padding hurts relevance.
 - **Homepage:** https://github.com/mjrossi/geforce-now-steam-check-firefox
 - **Support site:** https://github.com/mjrossi/geforce-now-steam-check-firefox/issues
-- **Support email:** leave blank (optional when a support site is given)
+- **Support email:** link00seven@entropyforward.com (note: shown publicly on the listing)
 - **License:** MIT
+- **Privacy policy:** include it (text below) — optional since data collection is "none",
+  but reassuring at no cost.
+- **EULA:** none. Unnecessary for a free, MIT-licensed extension; skip it.
 - **Applications:** Firefox (desktop) only. Leave **Firefox for Android** unchecked — the
   content scripts target desktop Steam markup and are untested on mobile.
 
@@ -89,6 +92,27 @@ lives in `CHANGELOG.md`.
 Upload `docs/screenshots/store-badge.jpg` and `docs/screenshots/wishlist-pill.png` (same
 images used in the README). The wishlist shot showing supported *and* "Not available"
 side by side is the strongest single image.
+
+Captions:
+
+- `store-badge.jpg`: A "Playable on GeForce NOW" badge appears right in the Steam store
+  page header — no searching, no leaving the page.
+- `wishlist-pill.png`: Your wishlist at a glance: supported games get a green GeForce NOW
+  pill, unsupported ones are clearly marked "Not available."
+
+---
+
+## Privacy policy (paste into the AMO privacy-policy field)
+
+```
+GeForce NOW check for Steam does not collect, store, or transmit any personal data. There are no analytics, no tracking, and no accounts.
+
+- Network requests: The extension makes a single kind of outbound request — it fetches NVIDIA's public GeForce NOW game catalog from games.geforce.com. No information about you, your browsing, or your Steam account is sent; the request asks only for the public list of supported games.
+- Local storage: The fetched catalog is cached in your browser for up to 12 hours so it isn't refetched on every page. This cache never leaves your device and contains only NVIDIA's public catalog data.
+- Page access: Content scripts run only on store.steampowered.com store and wishlist pages, where they read the Steam app IDs already on the page to look them up and draw a badge. Nothing else is read or transmitted.
+
+The extension declares no data collection in its manifest. Questions: https://github.com/mjrossi/geforce-now-steam-check-firefox/issues
+```
 
 ---
 
