@@ -11,7 +11,7 @@
     }
   },
   "permissions": ["storage"],
-  "host_permissions": ["https://static.nvidiagrid.net/*"],
+  "host_permissions": ["https://games.geforce.com/*"],
   "background": { "scripts": ["background.js"] },
   "content_scripts": [
     {

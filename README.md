@@ -16,12 +16,15 @@ just package      # build a distributable zip
 
 ## How it works
 
-A background script caches NVIDIA's public supported-games feed (12 h TTL) and
-indexes it by Steam app id. Content scripts on store/wishlist pages look games up
-and inject namespaced (`gfn-check-*`) badges. Data source:
-`https://static.nvidiagrid.net/supported-public-game-list/locales/gfnpc-en-US.json`.
+A background script caches NVIDIA's GeForce NOW catalog (12 h TTL) and indexes it
+by Steam app id. Content scripts on store/wishlist pages look games up and inject
+namespaced (`gfn-check-*`) badges. Data source: the GFN catalog GraphQL API the
+GeForce NOW web app uses, `https://games.geforce.com/graphql` (the legacy static
+`gfnpc-*.json` feed is abandoned and returns false negatives — it is missing
+large parts of the catalog, including newer titles).
 
-Membership tiers are not shown — the public feed does not expose them.
+The green RTX chip reflects each game's per-title `RTX_ENABLED` flag. Membership
+tiers are not shown.
 
 ## Debugging
 

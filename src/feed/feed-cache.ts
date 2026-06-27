@@ -1,4 +1,4 @@
-import type { GfnFeedEntry, GfnIndex } from "./types";
+import type { GfnApp, GfnIndex } from "./types";
 import { buildIndex } from "./index-feed";
 
 export interface FeedCache {
@@ -9,7 +9,7 @@ export interface FeedCache {
 export interface LoadDeps {
   getCache: () => Promise<FeedCache | null>;
   setCache: (cache: FeedCache) => Promise<void>;
-  fetchFeed: () => Promise<GfnFeedEntry[]>;
+  fetchFeed: () => Promise<GfnApp[]>;
   now: () => number;
   ttlMs: number;
   /** When true, ignore a fresh cache and refetch (manual debug refresh). */
