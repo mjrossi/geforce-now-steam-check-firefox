@@ -27,4 +27,11 @@ export const BADGE_CSS = `
 .gfn-check-pill--ok .gfn-check-dot { background:#76b900; }
 .gfn-check-pill--no .gfn-check-dot { background:#9aa5af; }
 .gfn-check-pill--unknown .gfn-check-dot { background:#b8860b; }
+
+/* Wishlist: overlay the pill in the bottom-right corner of the capsule. The
+   pill is non-interactive so the capsule stays fully clickable underneath. */
+.gfn-check-anchor { position:relative; }
+.gfn-check-pill-slot--overlay { position:absolute; right:8px; bottom:8px; z-index:3;
+  pointer-events:none; }
+.gfn-check-pill-slot--overlay .gfn-check-pill { box-shadow:0 1px 4px rgba(0,0,0,.55); }
 `;

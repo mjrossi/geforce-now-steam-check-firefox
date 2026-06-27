@@ -2,6 +2,11 @@ import { parseAppId, parseAppIdFromImage } from "../feed/parse-app-id";
 
 /** Marker class on the span we inject into each wishlist row. */
 export const PILL_SLOT = "gfn-check-pill-slot";
+/** Added to the slot when it overlays the capsule (vs. appended to the row). */
+export const OVERLAY_CLASS = `${PILL_SLOT}--overlay`;
+/** Added to the capsule's container to make it the overlay's positioning
+ *  context (CSS `position: relative`). */
+export const ANCHOR_CLASS = "gfn-check-anchor";
 /** Records which app id a slot was rendered for, so recycled virtualized rows
  *  (same container, different game) are re-badged instead of left stale. */
 export const APP_ID_ATTR = "data-gfn-app-id";
@@ -102,6 +107,20 @@ export function paint(
     slot.className = PILL_SLOT;
     slot.setAttribute(APP_ID_ATTR, String(appId));
     slot.appendChild(pill(appId));
-    row.appendChild(slot);
+
+    // Overlay the pill in the corner of the game's capsule so it reads as an
+    // availability badge, rather than floating at the bottom of the row block
+    // (under the rank/handle column). The capsule's own container becomes the
+    // positioning context. Fall back to appending to the row when a row has no
+    // capsule image. (Live-DOM dependent — re-verify with `just dev`.)
+    const capsule = row.querySelector<HTMLImageElement>('img[src*="/apps/"]');
+    const host = capsule?.parentElement;
+    if (host) {
+      host.classList.add(ANCHOR_CLASS);
+      slot.classList.add(OVERLAY_CLASS);
+      host.appendChild(slot);
+    } else {
+      row.appendChild(slot);
+    }
   }
 }

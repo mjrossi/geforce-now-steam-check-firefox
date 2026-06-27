@@ -99,6 +99,27 @@ describe("paint — idempotency & recycled rows", () => {
     return el;
   };
 
+  test("overlays the pill on the capsule when the row has one", () => {
+    document.body.innerHTML = `<div class="card"><a href="${link(10)}"><img src="${cap(10)}"></a></div>`;
+    const row = document.querySelector<HTMLElement>(".card")!;
+    paint(document, new Map([[10, row]]), pill);
+    const slot = row.querySelector<HTMLElement>(`.${PILL_SLOT}`)!;
+    expect(slot.classList.contains(`${PILL_SLOT}--overlay`)).toBe(true);
+    // the capsule's container becomes the positioning context and holds the slot
+    const host = row.querySelector("img")!.parentElement!;
+    expect(host.classList.contains("gfn-check-anchor")).toBe(true);
+    expect(host.contains(slot)).toBe(true);
+  });
+
+  test("falls back to appending to the row when there is no capsule", () => {
+    document.body.innerHTML = `<div class="card"><a href="${link(10)}">A</a></div>`;
+    const row = document.querySelector<HTMLElement>(".card")!;
+    paint(document, new Map([[10, row]]), pill);
+    const slot = row.querySelector<HTMLElement>(`.${PILL_SLOT}`)!;
+    expect(slot.classList.contains(`${PILL_SLOT}--overlay`)).toBe(false);
+    expect(slot.parentElement).toBe(row);
+  });
+
   test("badges a row once and is idempotent across re-runs", () => {
     document.body.innerHTML = `<div class="card"><a href="${link(10)}">A</a></div>`;
     const row = document.querySelector<HTMLElement>(".card")!;
