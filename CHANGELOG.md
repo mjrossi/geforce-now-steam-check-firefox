@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-27
+
+- Fix the toolbar / add-on icon rendering: ship the SVG icon directly instead of
+  rasterized PNGs. The earlier PNGs were generated as document-style thumbnails (the
+  icon shrunk into a corner on a transparent canvas), so the installed add-on showed a
+  tiny icon in a white box. The icon now scales crisply at every size.
+
 ## [0.2.1] — 2026-06-27
 
 - Open-sourced under the MIT license; added a privacy policy, changelog, and a
@@ -38,7 +45,8 @@ All notable changes to this project are documented here. The format is based on
 - Background service caches the catalog (12 h TTL) and indexes it by Steam app id;
   content scripts inject namespaced `gfn-check-*` badges.
 
-[Unreleased]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.1.1...v0.1.2

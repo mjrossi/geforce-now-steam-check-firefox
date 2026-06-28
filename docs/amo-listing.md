@@ -71,7 +71,7 @@ Beta release. Open source on [GitHub](https://github.com/mjrossi/geforce-now-ste
 
 ## Release notes (per-version field)
 
-First listed version (0.2.1) — frame as a first release, since AMO users never saw earlier versions:
+First listed version (0.3.0) — frame as a first release, since AMO users never saw earlier versions (the 0.2.x listed attempts were superseded before approval):
 
 ```
 First public beta release.
