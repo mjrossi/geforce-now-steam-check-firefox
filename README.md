@@ -21,12 +21,11 @@ GeForce NOW catalog and draws a small badge:
 
 ## Install
 
-- **Firefox Add-ons (AMO):** _listing pending review — link will go here once published._
-- **Manual (signed `.xpi`):** download the latest `.xpi` from the
-  [Releases](https://github.com/mjrossi/geforce-now-steam-check-firefox/releases) page and
-  open it in Firefox.
-- **Temporary (for testing a local build):** `about:debugging` → This Firefox → Load
-  Temporary Add-on → pick any file in `dist/` after `just build`.
+- **Firefox Add-ons (AMO)** _(recommended, once live)_: a beta listing is pending review —
+  the install link will go here when it's published.
+- **From source (until then):** clone the repo, run `just build`, then load it via
+  `about:debugging` → This Firefox → Load Temporary Add-on → pick any file in `dist/`.
+  Temporary add-ons unload when Firefox restarts.
 
 > This extension is in **beta**. Steam's wishlist markup changes often; if a badge looks
 > wrong, please [open an issue](https://github.com/mjrossi/geforce-now-steam-check-firefox/issues).
