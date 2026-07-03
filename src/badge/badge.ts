@@ -1,5 +1,6 @@
 import type { BadgeState } from "../feed/resolve-state";
 import { BADGE_CSS } from "./badge.css";
+import { gfnPlayUrl } from "./gfn-link";
 
 const STYLE_ID = "gfn-check-style";
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -60,10 +61,27 @@ function dot(doc: Document): HTMLElement {
   return d;
 }
 
-/** Prominent full-width banner for a store page, placed near the title. */
+/** Prominent full-width banner for a store page, placed near the title. When
+ *  the game is supported and the index carries its GFN id, the whole banner is
+ *  a deep link into the GFN web app; otherwise (including a supported hit from
+ *  a stale pre-v2 cache without the id) it stays a plain div. */
 export function renderStoreBanner(doc: Document, state: BadgeState): HTMLElement {
-  const el = doc.createElement("div");
-  el.className = `gfn-check-banner gfn-check-banner--${modifier(state)}`;
+  const playUrl =
+    state.kind === "supported" && state.gfnId !== undefined ? gfnPlayUrl(state.gfnId) : null;
+
+  let el: HTMLElement;
+  if (playUrl !== null) {
+    const a = doc.createElement("a");
+    a.href = playUrl;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    el = a;
+  } else {
+    el = doc.createElement("div");
+  }
+  el.className = `gfn-check-banner gfn-check-banner--${modifier(state)}${
+    playUrl !== null ? " gfn-check-banner--link" : ""
+  }`;
 
   const logo = doc.createElement("span");
   logo.className = "gfn-check-banner-logo";
@@ -80,6 +98,13 @@ export function renderStoreBanner(doc: Document, state: BadgeState): HTMLElement
     rtx.className = "gfn-check-rtx";
     rtx.textContent = "RTX";
     el.appendChild(rtx);
+  }
+
+  if (playUrl !== null) {
+    const play = doc.createElement("span");
+    play.className = "gfn-check-play";
+    play.textContent = "Play ↗";
+    el.appendChild(play);
   }
   return el;
 }

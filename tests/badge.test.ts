@@ -7,6 +7,7 @@ import {
   renderStoreBanner,
   renderWishlistPill,
 } from "../src/badge/badge";
+import { gfnPlayUrl } from "../src/badge/gfn-link";
 
 beforeEach(() => {
   document.head.innerHTML = "";
@@ -46,6 +47,41 @@ describe("renderStoreBanner", () => {
     expect(el.querySelector(".gfn-check-banner-text")!.textContent).toBe(
       "GeForce NOW: click the toolbar icon to enable checks",
     );
+  });
+
+  test("supported with a gfn id renders as a deep link to play.geforcenow.com", () => {
+    const gfnId = "e5bd86f0-3f67-4bec-a505-d1315f3c0d50";
+    const el = renderStoreBanner(document, { kind: "supported", rtx: false, gfnId });
+    expect(el.tagName).toBe("A");
+    // Exact URL serialization is owned by gfn-link.test.ts; here we only care
+    // that the href is the deep link for this id.
+    expect(el.getAttribute("href")).toBe(gfnPlayUrl(gfnId));
+    expect(el.getAttribute("target")).toBe("_blank");
+    expect(el.getAttribute("rel")).toContain("noopener");
+    expect(el.getAttribute("rel")).toContain("noreferrer");
+    expect(el.className).toContain("gfn-check-banner--link");
+    expect(el.querySelector(".gfn-check-play")).not.toBeNull();
+  });
+
+  test("supported without a gfn id (stale pre-v2 cache) stays a plain div", () => {
+    const el = renderStoreBanner(document, { kind: "supported", rtx: true });
+    expect(el.tagName).toBe("DIV");
+    expect(el.getAttribute("href")).toBeNull();
+    expect(el.className).not.toContain("gfn-check-banner--link");
+    expect(el.querySelector(".gfn-check-play")).toBeNull();
+  });
+
+  test("non-supported states are never links", () => {
+    for (const state of [
+      { kind: "not-supported" } as const,
+      { kind: "unknown" } as const,
+      { kind: "needs-permission" } as const,
+    ]) {
+      const el = renderStoreBanner(document, state);
+      expect(el.tagName).toBe("DIV");
+      expect(el.className).not.toContain("gfn-check-banner--link");
+      expect(el.querySelector(".gfn-check-play")).toBeNull();
+    }
   });
 });
 

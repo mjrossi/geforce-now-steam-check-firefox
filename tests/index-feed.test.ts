@@ -30,7 +30,7 @@ describe("buildIndex", () => {
         }),
       ]),
     ]);
-    expect(idx["620"]).toEqual({ rtx: true });
+    expect(idx["620"]).toMatchObject({ rtx: true });
   });
 
   test("rtx is false without an RTX_ENABLED=true feature", () => {
@@ -42,14 +42,14 @@ describe("buildIndex", () => {
         }),
       ]),
     ]);
-    expect(idx["10"]).toEqual({ rtx: false });
+    expect(idx["10"]).toMatchObject({ rtx: false });
   });
 
   test("rtx is false when gfn / features are null", () => {
     const idx = buildIndex([
       app([variant({ storeUrl: "https://store.steampowered.com/app/11", gfn: null })]),
     ]);
-    expect(idx["11"]).toEqual({ rtx: false });
+    expect(idx["11"]).toMatchObject({ rtx: false });
   });
 
   test("keeps only the Steam variant of a multi-store game", () => {
@@ -59,7 +59,7 @@ describe("buildIndex", () => {
         variant({ appStore: "STEAM", storeUrl: "https://store.steampowered.com/app/239160" }),
       ]),
     ]);
-    expect(idx).toEqual({ "239160": { rtx: false } });
+    expect(Object.keys(idx)).toEqual(["239160"]);
   });
 
   test("matches the STEAM store label case/space-insensitively", () => {
@@ -67,8 +67,8 @@ describe("buildIndex", () => {
       app([variant({ appStore: "STEAM", storeUrl: "https://store.steampowered.com/app/7" })]),
       app([variant({ appStore: " steam ", storeUrl: "https://store.steampowered.com/app/8" })]),
     ]);
-    expect(idx["7"]).toEqual({ rtx: false });
-    expect(idx["8"]).toEqual({ rtx: false });
+    expect(idx["7"]).toBeDefined();
+    expect(idx["8"]).toBeDefined();
   });
 
   test("skips variants with a null or app-id-less storeUrl", () => {
@@ -84,16 +84,22 @@ describe("buildIndex", () => {
     expect(Object.keys(idx)).toHaveLength(0);
   });
 
-  test("indexes multiple apps", () => {
+  test("indexes multiple apps, each carrying its own gfn id", () => {
     const idx = buildIndex([
-      app([variant({ storeUrl: "https://store.steampowered.com/app/1" })]),
-      app([
-        variant({
-          storeUrl: "https://store.steampowered.com/app/2",
-          gfn: { features: rtxFeatures },
-        }),
-      ]),
+      app([variant({ storeUrl: "https://store.steampowered.com/app/1" })], { id: "uuid-a" }),
+      app(
+        [
+          variant({
+            storeUrl: "https://store.steampowered.com/app/2",
+            gfn: { features: rtxFeatures },
+          }),
+        ],
+        { id: "uuid-b" },
+      ),
     ]);
-    expect(idx).toEqual({ "1": { rtx: false }, "2": { rtx: true } });
+    expect(idx).toEqual({
+      "1": { rtx: false, gfnId: "uuid-a" },
+      "2": { rtx: true, gfnId: "uuid-b" },
+    });
   });
 });

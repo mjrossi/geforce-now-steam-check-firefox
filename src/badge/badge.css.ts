@@ -13,9 +13,21 @@ export const BADGE_CSS = `
 .gfn-check-banner-logo svg { width:100%; height:100%; display:block; }
 .gfn-check-banner-text { flex:1 1 auto; font-weight:bold; }
 .gfn-check-banner--ok .gfn-check-banner-text { color:#8fd11a; }
-.gfn-check-banner .gfn-check-rtx { flex:0 0 auto; background:#76b900; color:#000;
+/* The RTX and Play chips sit side by side in the banner and share geometry so
+   they read as siblings; only their colors differ. */
+.gfn-check-banner .gfn-check-rtx, .gfn-check-banner .gfn-check-play { flex:0 0 auto;
   font-size:11px; font-weight:bold; padding:2px 8px; border-radius:9px;
-  letter-spacing:.5px; }
+  letter-spacing:.5px; white-space:nowrap; }
+.gfn-check-banner .gfn-check-rtx { background:#76b900; color:#000; }
+.gfn-check-banner .gfn-check-play { border:1px solid #76b900; color:#8fd11a; }
+
+/* Deep-link banner. Explicit color + no underline so Steam's global anchor
+   styles can't restyle it; hover brightens and underlines the label as the
+   click affordance. */
+.gfn-check-banner--link { text-decoration:none; cursor:pointer; color:#cdee87; }
+.gfn-check-banner--link:hover { background:linear-gradient(90deg,#26470d,#122507);
+  color:#cdee87; }
+.gfn-check-banner--link:hover .gfn-check-banner-text { text-decoration:underline; }
 
 .gfn-check-pill { display:inline-flex; align-items:center; gap:5px; font-size:12px;
   padding:3px 9px; border-radius:10px; white-space:nowrap; font-weight:bold;

@@ -25,6 +25,14 @@ export interface GfnApp {
   variants: GfnVariant[] | null;
 }
 
+/** One indexed game. `gfnId` is the catalog app UUID, used to build the
+ *  play.geforcenow.com deep link; optional because a stale pre-v2 cache served
+ *  after a failed refetch lacks it (the banner then degrades to non-clickable). */
+export interface GfnIndexEntry {
+  rtx: boolean;
+  gfnId?: string;
+}
+
 /** Lookup index keyed by Steam app id (string). Only GFN-supported Steam games
  *  appear. Record form serializes cleanly into browser.storage.local. */
-export type GfnIndex = Record<string, { rtx: boolean }>;
+export type GfnIndex = Record<string, GfnIndexEntry>;

@@ -19,7 +19,7 @@ export function buildIndex(apps: GfnApp[]): GfnIndex {
       const rtx = (variant.gfn?.features ?? []).some(
         (f) => f.key === RTX_FEATURE && f.value === "true",
       );
-      index[String(appId)] = { rtx };
+      index[String(appId)] = { rtx, gfnId: app.id };
     }
   }
   return index;
