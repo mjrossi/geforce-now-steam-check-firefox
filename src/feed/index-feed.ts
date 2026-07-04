@@ -1,4 +1,4 @@
-import type { GfnApp, GfnIndex } from "./types";
+import type { GfnApp, GfnIndex, GfnIndexEntry } from "./types";
 import { parseAppId } from "./parse-app-id";
 
 const STEAM = "steam";
@@ -19,7 +19,9 @@ export function buildIndex(apps: GfnApp[]): GfnIndex {
       const rtx = (variant.gfn?.features ?? []).some(
         (f) => f.key === RTX_FEATURE && f.value === "true",
       );
-      index[String(appId)] = { rtx, gfnId: app.id };
+      const entry: GfnIndexEntry = { rtx, gfnId: app.id };
+      if (typeof app.cmsId === "number") entry.cmsId = app.cmsId;
+      index[String(appId)] = entry;
     }
   }
   return index;

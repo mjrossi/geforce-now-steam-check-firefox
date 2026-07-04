@@ -84,9 +84,12 @@ describe("buildIndex", () => {
     expect(Object.keys(idx)).toHaveLength(0);
   });
 
-  test("indexes multiple apps, each carrying its own gfn id", () => {
+  test("indexes multiple apps, each carrying its own gfn id and cms id", () => {
     const idx = buildIndex([
-      app([variant({ storeUrl: "https://store.steampowered.com/app/1" })], { id: "uuid-a" }),
+      app([variant({ storeUrl: "https://store.steampowered.com/app/1" })], {
+        id: "uuid-a",
+        cmsId: 100111,
+      }),
       app(
         [
           variant({
@@ -94,12 +97,20 @@ describe("buildIndex", () => {
             gfn: { features: rtxFeatures },
           }),
         ],
-        { id: "uuid-b" },
+        { id: "uuid-b", cmsId: 100222 },
       ),
     ]);
     expect(idx).toEqual({
-      "1": { rtx: false, gfnId: "uuid-a" },
-      "2": { rtx: true, gfnId: "uuid-b" },
+      "1": { rtx: false, gfnId: "uuid-a", cmsId: 100111 },
+      "2": { rtx: true, gfnId: "uuid-b", cmsId: 100222 },
     });
+  });
+
+  test("omits cmsId when the catalog does not provide a numeric one", () => {
+    const idx = buildIndex([
+      app([variant({ storeUrl: "https://store.steampowered.com/app/3" })], { id: "uuid-c" }),
+    ]);
+    expect(idx["3"]).toEqual({ rtx: false, gfnId: "uuid-c" });
+    expect("cmsId" in idx["3"]!).toBe(false);
   });
 });

@@ -6,16 +6,20 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-## [0.4.0] — 2026-07-03
+## [0.4.0] — 2026-07-04
 
-- The "Playable on GeForce NOW" banner on store pages is now a link: clicking it opens
-  the game on play.geforcenow.com in a new tab (official GFN deep link, with a "Play ↗"
-  affordance and hover styling). Other banner states remain plain, non-clickable text.
+- The "Playable on GeForce NOW" banner on store pages is now a link. Clicking it opens
+  the game **in the native GeForce NOW app** (via the client's `geforcenow://` route —
+  Firefox itself can't stream GFN, so the app is the default), with a one-time Firefox
+  "open this application?" confirmation. A muted "web ↗" chip next to the Play chip
+  keeps the official play.geforcenow.com deep link for anyone without the app
+  installed. Other banner states remain plain, non-clickable text.
 - The wishlist pill intentionally stays informational — it overlays each row's capsule,
   which is itself a link to the store page.
-- Feed cache schema v2: the index now stores each game's GFN catalog id. Upgrading
-  triggers a one-time catalog refetch; a stale pre-v2 cache served during a network
-  outage degrades to a non-clickable banner (never a wrong answer).
+- Feed cache schema v3: the index now stores each game's GFN catalog id (web link) and
+  cms id (app link). Upgrading triggers a one-time catalog refetch; a stale pre-v3
+  cache served during a network outage degrades gracefully (web-only link or
+  non-clickable banner — never a wrong answer).
 
 ## [0.3.0] — 2026-06-27
 

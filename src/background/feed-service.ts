@@ -17,6 +17,7 @@ const APPS_QUERY = `query($after: String) {
     pageInfo { hasNextPage endCursor }
     items {
       id
+      cmsId
       title
       variants {
         appStore

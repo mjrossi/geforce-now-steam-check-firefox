@@ -18,19 +18,24 @@ export interface GfnVariant {
   gfn: { features: GfnFeature[] | null } | null;
 }
 
-/** One GFN-supported game, with a listing per storefront it's playable from. */
+/** One GFN-supported game, with a listing per storefront it's playable from.
+ *  `cmsId` is the numeric content-management id the native client's game
+ *  routes use; modeled optional/null defensively since it's undocumented. */
 export interface GfnApp {
   id: string;
+  cmsId?: number | null;
   title: string;
   variants: GfnVariant[] | null;
 }
 
-/** One indexed game. `gfnId` is the catalog app UUID, used to build the
- *  play.geforcenow.com deep link; optional because a stale pre-v2 cache served
- *  after a failed refetch lacks it (the banner then degrades to non-clickable). */
+/** One indexed game. `gfnId` (catalog app UUID) builds the play.geforcenow.com
+ *  web link; `cmsId` builds the `geforcenow://` native-app route. Both are
+ *  optional because a stale pre-v3 cache served after a failed refetch lacks
+ *  them (the banner then degrades: web-only link, or plain non-clickable). */
 export interface GfnIndexEntry {
   rtx: boolean;
   gfnId?: string;
+  cmsId?: number;
 }
 
 /** Lookup index keyed by Steam app id (string). Only GFN-supported Steam games

@@ -2,9 +2,10 @@ import type { GfnApp, GfnIndex } from "./types";
 import { buildIndex } from "./index-feed";
 
 /** Cache schema version. Bumped when the index shape changes (v2 added
- *  `gfnId`), so an upgraded extension refetches instead of waiting out the TTL.
- *  Pre-versioning caches read back with `version` undefined and count as v1. */
-export const CACHE_VERSION = 2;
+ *  `gfnId`, v3 added `cmsId`), so an upgraded extension refetches instead of
+ *  waiting out the TTL. Pre-versioning caches read back with `version`
+ *  undefined and count as v1. */
+export const CACHE_VERSION = 3;
 
 export interface FeedCache {
   fetchedAt: number;

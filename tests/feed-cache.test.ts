@@ -4,6 +4,7 @@ import type { GfnApp } from "../src/feed/types";
 
 const steamApp: GfnApp = {
   id: "1",
+  cmsId: 100620,
   title: "T",
   variants: [
     {
@@ -41,11 +42,14 @@ describe("loadIndex", () => {
   test("missing cache → fetches, builds, stores versioned cache, returns index", async () => {
     const setCache = vi.fn(async () => {});
     const result = await loadIndex(deps({ getCache: async () => null, setCache }));
-    expect(result).toEqual({ ok: true, index: { "620": { rtx: true, gfnId: "1" } } });
+    expect(result).toEqual({
+      ok: true,
+      index: { "620": { rtx: true, gfnId: "1", cmsId: 100620 } },
+    });
     expect(setCache).toHaveBeenCalledWith({
       fetchedAt: 1_000_000,
       version: CACHE_VERSION,
-      index: { "620": { rtx: true, gfnId: "1" } },
+      index: { "620": { rtx: true, gfnId: "1", cmsId: 100620 } },
     });
   });
 
@@ -54,7 +58,10 @@ describe("loadIndex", () => {
     const fetchFeed = vi.fn(async () => [steamApp]);
     const result = await loadIndex(deps({ getCache: async () => stale, fetchFeed }));
     expect(fetchFeed).toHaveBeenCalledOnce();
-    expect(result).toEqual({ ok: true, index: { "620": { rtx: true, gfnId: "1" } } });
+    expect(result).toEqual({
+      ok: true,
+      index: { "620": { rtx: true, gfnId: "1", cmsId: 100620 } },
+    });
   });
 
   // A pre-versioning cache (written before the `version` field existed),
@@ -65,7 +72,25 @@ describe("loadIndex", () => {
     const fetchFeed = vi.fn(async () => [steamApp]);
     const result = await loadIndex(deps({ getCache: async () => preV2Cache, fetchFeed, now: () => 1_000_000 }));
     expect(fetchFeed).toHaveBeenCalledOnce();
-    expect(result).toEqual({ ok: true, index: { "620": { rtx: true, gfnId: "1" } } });
+    expect(result).toEqual({
+      ok: true,
+      index: { "620": { rtx: true, gfnId: "1", cmsId: 100620 } },
+    });
+  });
+
+  test("time-fresh v2 cache (gfnId but no cmsId) → refetches", async () => {
+    const v2Cache: FeedCache = {
+      fetchedAt: 999_500,
+      version: 2,
+      index: { "1": { rtx: false, gfnId: "u" } },
+    };
+    const fetchFeed = vi.fn(async () => [steamApp]);
+    const result = await loadIndex(deps({ getCache: async () => v2Cache, fetchFeed, now: () => 1_000_000 }));
+    expect(fetchFeed).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      ok: true,
+      index: { "620": { rtx: true, gfnId: "1", cmsId: 100620 } },
+    });
   });
 
   test("old-schema cache + fetch failure → serve the old cache, ok:true", async () => {

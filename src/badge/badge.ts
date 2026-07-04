@@ -1,6 +1,6 @@
 import type { BadgeState } from "../feed/resolve-state";
 import { BADGE_CSS } from "./badge.css";
-import { gfnPlayUrl } from "./gfn-link";
+import { gfnAppUrl, gfnPlayUrl } from "./gfn-link";
 
 const STYLE_ID = "gfn-check-style";
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -61,50 +61,84 @@ function dot(doc: Document): HTMLElement {
   return d;
 }
 
-/** Prominent full-width banner for a store page, placed near the title. When
- *  the game is supported and the index carries its GFN id, the whole banner is
- *  a deep link into the GFN web app; otherwise (including a supported hit from
- *  a stale pre-v2 cache without the id) it stays a plain div. */
+/** Prominent full-width banner for a store page, placed near the title.
+ *
+ *  Supported games link out; everything else is inert. Firefox can't stream
+ *  GFN (play.geforcenow.com blocks it as an unsupported browser), so the main
+ *  click target prefers the *native app* route and a small "web ↗" chip keeps
+ *  the browser link as the no-app fallback — a `geforcenow://` click is a dead
+ *  end when the app isn't installed and extensions can't detect that.
+ *
+ *  Degradation on stale caches served after a failed refetch: v2 entry (gfnId
+ *  only) → single web link; pre-v2 entry (no ids) → plain non-clickable div.
+ *  The root stays a <div> in all cases (two sibling links — nesting anchors is
+ *  invalid), so placeBefore/placeAfter and the id-keyed re-injection are
+ *  unaffected. */
 export function renderStoreBanner(doc: Document, state: BadgeState): HTMLElement {
-  const playUrl =
+  const appUrl =
+    state.kind === "supported" && state.gfnId !== undefined && state.cmsId !== undefined
+      ? gfnAppUrl(state.cmsId, state.gfnId)
+      : null;
+  const webUrl =
     state.kind === "supported" && state.gfnId !== undefined ? gfnPlayUrl(state.gfnId) : null;
+  const mainUrl = appUrl ?? webUrl;
 
-  let el: HTMLElement;
-  if (playUrl !== null) {
-    const a = doc.createElement("a");
-    a.href = playUrl;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    el = a;
-  } else {
-    el = doc.createElement("div");
-  }
+  const el = doc.createElement("div");
   el.className = `gfn-check-banner gfn-check-banner--${modifier(state)}${
-    playUrl !== null ? " gfn-check-banner--link" : ""
+    mainUrl !== null ? " gfn-check-banner--link" : ""
   }`;
+
+  // Everything except the web chip goes inside `main`: the whole banner face
+  // is the primary click target when linked.
+  let main: HTMLElement = el;
+  if (mainUrl !== null) {
+    const a = doc.createElement("a");
+    a.className = "gfn-check-banner-main";
+    a.href = mainUrl;
+    if (appUrl === null) {
+      // Web link: open the GFN web app in its own tab. The app route instead
+      // stays targetless — Firefox hands the custom scheme to the OS without
+      // leaving the page.
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+    }
+    el.appendChild(a);
+    main = a;
+  }
 
   const logo = doc.createElement("span");
   logo.className = "gfn-check-banner-logo";
   logo.appendChild(logoSvg(doc));
-  el.appendChild(logo);
+  main.appendChild(logo);
 
   const text = doc.createElement("span");
   text.className = "gfn-check-banner-text";
   text.textContent = bannerLabel(state);
-  el.appendChild(text);
+  main.appendChild(text);
 
   if (state.kind === "supported" && state.rtx) {
     const rtx = doc.createElement("span");
     rtx.className = "gfn-check-rtx";
     rtx.textContent = "RTX";
-    el.appendChild(rtx);
+    main.appendChild(rtx);
   }
 
-  if (playUrl !== null) {
+  if (mainUrl !== null) {
     const play = doc.createElement("span");
     play.className = "gfn-check-play";
-    play.textContent = "Play ↗";
-    el.appendChild(play);
+    play.textContent = appUrl !== null ? "Play" : "Play ↗";
+    main.appendChild(play);
+  }
+
+  if (appUrl !== null && webUrl !== null) {
+    const web = doc.createElement("a");
+    web.className = "gfn-check-web";
+    web.href = webUrl;
+    web.target = "_blank";
+    web.rel = "noopener noreferrer";
+    web.textContent = "web ↗";
+    web.title = "Open in the browser instead of the GeForce NOW app";
+    el.appendChild(web);
   }
   return el;
 }
