@@ -1,4 +1,4 @@
-import type { GfnApp } from "../feed/types";
+import type { GfnApp, GfnIndexEntry } from "../feed/types";
 import type { LookupRequest, LookupResponse } from "../shared/messages";
 import { loadIndex, type FeedCache, type LoadDeps } from "../feed/feed-cache";
 import { hasFeedPermission } from "../shared/permission";
@@ -17,6 +17,7 @@ const APPS_QUERY = `query($after: String) {
     pageInfo { hasNextPage endCursor }
     items {
       id
+      cmsId
       title
       variants {
         appStore
@@ -62,12 +63,21 @@ async function readFlag(key: string): Promise<boolean> {
   return stored[key] === true;
 }
 
+// In-memory copy of the stored cache. Wishlist scrolling sends a lookup per
+// debounced mutation batch, and re-reading the ~150 KB cache from
+// storage.local each time is wasted IPC. Safe because this module is the only
+// writer of CACHE_KEY; an MV3 background restart just repopulates it once.
+let cacheMemo: FeedCache | null = null;
+
 const deps: LoadDeps = {
   async getCache() {
+    if (cacheMemo !== null) return cacheMemo;
     const stored = await browser.storage.local.get(CACHE_KEY);
-    return (stored[CACHE_KEY] as FeedCache | undefined) ?? null;
+    cacheMemo = (stored[CACHE_KEY] as FeedCache | undefined) ?? null;
+    return cacheMemo;
   },
   async setCache(cache) {
+    cacheMemo = cache;
     await browser.storage.local.set({ [CACHE_KEY]: cache });
   },
   async fetchFeed() {
@@ -106,7 +116,7 @@ async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
     log.warn(`feed unavailable (${reason}); ${req.appIds.length} id(s) -> unknown`);
     return { ok: false, found: {}, reason };
   }
-  const found: Record<string, { rtx: boolean }> = {};
+  const found: Record<string, GfnIndexEntry> = {};
   for (const appId of req.appIds) {
     const hit = result.index[String(appId)];
     if (hit) found[String(appId)] = hit;

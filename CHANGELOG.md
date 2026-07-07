@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-04
+
+- The "Playable on GeForce NOW" banner on store pages is now a link. Clicking it opens
+  the game **in the native GeForce NOW app** (via the client's `geforcenow://` route —
+  Firefox itself can't stream GFN, so the app is the default), with a one-time Firefox
+  "open this application?" confirmation. A muted "web ↗" chip next to the Play chip
+  keeps the official play.geforcenow.com deep link for anyone without the app
+  installed. Other banner states remain plain, non-clickable text.
+- The wishlist pill intentionally stays informational — it overlays each row's capsule,
+  which is itself a link to the store page.
+- Feed cache schema v3: the index now stores each game's GFN catalog id (web link) and
+  cms id (app link). Upgrading triggers a one-time catalog refetch; a stale pre-v3
+  cache served during a network outage degrades gracefully (web-only link or
+  non-clickable banner — never a wrong answer).
+
 ## [0.3.0] — 2026-06-27
 
 - Fix the toolbar / add-on icon rendering: ship the SVG icon directly instead of
@@ -45,7 +60,8 @@ All notable changes to this project are documented here. The format is based on
 - Background service caches the catalog (12 h TTL) and indexes it by Steam app id;
   content scripts inject namespaced `gfn-check-*` badges.
 
-[Unreleased]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.1.2...v0.2.0

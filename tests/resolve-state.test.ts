@@ -15,13 +15,31 @@ describe("resolveState", () => {
     const res: LookupResponse = { ok: false, found: {}, reason: "permission" };
     expect(resolveState(620, res)).toEqual({ kind: "needs-permission" });
   });
-  test("present in found → supported with rtx flag", () => {
-    const res: LookupResponse = { ok: true, found: { "620": { rtx: true } } };
-    expect(resolveState(620, res)).toEqual({ kind: "supported", rtx: true });
+  test("present in found → supported with rtx flag, gfn id and cms id", () => {
+    const res: LookupResponse = {
+      ok: true,
+      found: { "620": { rtx: true, gfnId: "uuid-620", cmsId: 100620 } },
+    };
+    expect(resolveState(620, res)).toEqual({
+      kind: "supported",
+      rtx: true,
+      gfnId: "uuid-620",
+      cmsId: 100620,
+    });
   });
   test("present without rtx → supported rtx:false", () => {
+    const res: LookupResponse = { ok: true, found: { "10": { rtx: false, gfnId: "u" } } };
+    expect(resolveState(10, res)).toEqual({
+      kind: "supported",
+      rtx: false,
+      gfnId: "u",
+      cmsId: undefined,
+    });
+  });
+  test("entry without ids (stale pre-v2 cache) → supported, ids undefined", () => {
     const res: LookupResponse = { ok: true, found: { "10": { rtx: false } } };
-    expect(resolveState(10, res)).toEqual({ kind: "supported", rtx: false });
+    const state = resolveState(10, res);
+    expect(state).toEqual({ kind: "supported", rtx: false, gfnId: undefined, cmsId: undefined });
   });
   test("absent but feed ok → not-supported", () => {
     const res: LookupResponse = { ok: true, found: {} };

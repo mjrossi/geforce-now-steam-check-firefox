@@ -1,3 +1,5 @@
+import type { GfnIndexEntry } from "../feed/types";
+
 /** Content script → background: look up these Steam app ids. */
 export interface LookupRequest {
   type: "gfn-lookup";
@@ -9,7 +11,7 @@ export interface LookupRequest {
  *  carries only supported app ids, keyed by app-id string. */
 export interface LookupResponse {
   ok: boolean;
-  found: Record<string, { rtx: boolean }>;
+  found: Record<string, GfnIndexEntry>;
   /** Why the feed was unavailable (only meaningful when `ok` is false).
    *  "permission" → the host permission for the feed origin has not been granted
    *  yet (the user must enable it via the popup/onboarding); "network" → the

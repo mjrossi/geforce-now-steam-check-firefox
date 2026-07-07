@@ -1,7 +1,7 @@
 import type { LookupResponse } from "../shared/messages";
 
 export type BadgeState =
-  | { kind: "supported"; rtx: boolean }
+  | { kind: "supported"; rtx: boolean; gfnId?: string; cmsId?: number }
   | { kind: "not-supported" }
   | { kind: "unknown" }
   | { kind: "needs-permission" };
@@ -17,6 +17,6 @@ export function resolveState(appId: number, response: LookupResponse): BadgeStat
       : { kind: "unknown" };
   }
   const hit = response.found[String(appId)];
-  if (hit) return { kind: "supported", rtx: hit.rtx };
+  if (hit) return { kind: "supported", rtx: hit.rtx, gfnId: hit.gfnId, cmsId: hit.cmsId };
   return { kind: "not-supported" };
 }

@@ -13,9 +13,33 @@ export const BADGE_CSS = `
 .gfn-check-banner-logo svg { width:100%; height:100%; display:block; }
 .gfn-check-banner-text { flex:1 1 auto; font-weight:bold; }
 .gfn-check-banner--ok .gfn-check-banner-text { color:#8fd11a; }
-.gfn-check-banner .gfn-check-rtx { flex:0 0 auto; background:#76b900; color:#000;
+/* The RTX/Play/web chips sit side by side in the banner and share geometry so
+   they read as siblings; only their colors differ. */
+.gfn-check-banner .gfn-check-rtx, .gfn-check-banner .gfn-check-play,
+.gfn-check-banner .gfn-check-web { flex:0 0 auto;
   font-size:11px; font-weight:bold; padding:2px 8px; border-radius:9px;
-  letter-spacing:.5px; }
+  letter-spacing:.5px; white-space:nowrap; }
+.gfn-check-banner .gfn-check-rtx { background:#76b900; color:#000; }
+.gfn-check-banner .gfn-check-play { border:1px solid #76b900; color:#8fd11a; }
+
+/* Deep-link banner: the main anchor carries the banner's flex layout AND its
+   padding — the root goes padding:0 — so every pixel that shows the hover face
+   is genuinely clickable (padding on the root would leave dead bands that
+   still look hot). The hover face lives on the anchor itself, which also keeps
+   the muted "web ↗" sibling link visually separate; overflow:hidden clips the
+   face to the root's rounded corners. Explicit colors + no underline so
+   Steam's global anchor styles can't restyle either; hovering the main target
+   underlines the label as the click affordance. */
+.gfn-check-banner--link { padding:0; overflow:hidden; }
+.gfn-check-banner-main { display:flex; align-items:center; gap:10px;
+  flex:1 1 auto; min-width:0; padding:11px 14px; color:inherit; text-decoration:none; }
+.gfn-check-banner-main:hover { background:linear-gradient(90deg,#26470d,#122507);
+  color:#cdee87; }
+.gfn-check-banner-main:hover .gfn-check-banner-text { text-decoration:underline; }
+.gfn-check-banner--link .gfn-check-web { margin-right:14px; }
+.gfn-check-banner .gfn-check-web { border:1px solid #4e6b2a; color:#7e9a55;
+  text-decoration:none; }
+.gfn-check-banner .gfn-check-web:hover { border-color:#76b900; color:#8fd11a; }
 
 .gfn-check-pill { display:inline-flex; align-items:center; gap:5px; font-size:12px;
   padding:3px 9px; border-radius:10px; white-space:nowrap; font-weight:bold;
