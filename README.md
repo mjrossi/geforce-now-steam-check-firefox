@@ -22,7 +22,6 @@ GeForce NOW catalog and draws a small badge:
 ## Install
 
 - **Firefox Add-ons (AMO)** _(recommended)_:
-  <!-- TODO: confirm the listing slug before publishing 1.0.0 -->
   [Add to Firefox](https://addons.mozilla.org/firefox/addon/geforce-now-check-for-steam/)
 - **From source:** clone the repo, run `just build`, then load it via `about:debugging` →
   This Firefox → Load Temporary Add-on → pick any file in `dist/`. Temporary add-ons

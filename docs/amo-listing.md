@@ -3,6 +3,9 @@
 Everything needed to submit this extension to addons.mozilla.org (AMO). Keep this in
 sync when the listing copy or build process changes.
 
+**Listing:** https://addons.mozilla.org/firefox/addon/geforce-now-check-for-steam/ (the
+locale-less form redirects to the visitor's locale — prefer it when linking).
+
 **Add-on ID:** `gfn-check@mjrossi` (already registered on AMO). Submit new versions under
 the **existing** add-on (Developer Hub → Manage My Submissions → Upload a New Version),
 **not** "Submit a New Add-on" — that errors with "Duplicate add-on ID".
