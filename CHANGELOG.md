@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-28
+
+First stable release: the AMO listing drops its **experimental** flag. No new page
+coverage — this release is about surviving and supporting a wider install base.
+
+- **Badges no longer vanish when the background is slow to start.** Content scripts
+  awaited `browser.runtime.sendMessage` with no failure path, so a lookup issued before
+  the MV3 background had spun up — during browser startup, or across an extension
+  update — rejected and left the page with *no badge at all*. Messaging now degrades to
+  the existing "couldn't check" state, which is honest and never a false "not supported".
+- **The popup reports on the catalog and can refresh it.** It now shows how many games
+  are indexed and how long ago they were fetched, with a *Refresh catalog* button. This
+  replaces the `gfn-force-refresh` storage flag, which required typing into the
+  background console and so was useless as a support instruction.
+- **Faster wishlist repaints.** Scrolling a virtualized wishlist re-asked the background
+  about every visible row on each mutation batch — including batches triggered by our own
+  pill injection. Lookups are now memoized per tab and only newly seen games are
+  requested; transient states stay retryable, so badges self-heal once the network
+  recovers or the permission is granted.
+- Internal: `resolveBannerLinks` splits store-banner link resolution out of DOM building,
+  making the stale-cache degradation matrix directly testable.
+
 ## [0.4.0] — 2026-07-04
 
 - The "Playable on GeForce NOW" banner on store pages is now a link. Clicking it opens
@@ -60,7 +82,8 @@ All notable changes to this project are documented here. The format is based on
 - Background service caches the catalog (12 h TTL) and indexes it by Steam app id;
   content scripts inject namespaced `gfn-check-*` badges.
 
-[Unreleased]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.4.0...v1.0.0
 [0.4.0]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/mjrossi/geforce-now-steam-check-firefox/compare/v0.2.0...v0.2.1

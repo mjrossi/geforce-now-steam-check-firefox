@@ -33,6 +33,19 @@
       }
       button:disabled { background: #3a4654; color: #8a98a6; cursor: default; }
       .muted { color: #8a98a6; font-size: 12px; }
+      .catalog {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid #2a3a4a;
+      }
+      .catalog p { margin: 0 0 8px; }
+      button.secondary {
+        background: transparent;
+        border: 1px solid #4a5c6e;
+        color: #c6d4df;
+        font-weight: normal;
+      }
+      button.secondary:disabled { background: transparent; border-color: #3a4654; color: #6c7a88; }
     </style>
   </head>
   <body>
@@ -46,6 +59,10 @@
       badges can appear on Steam pages.
     </p>
     <button id="enable" disabled>Enable GeForce NOW checks</button>
+    <div class="catalog">
+      <p id="catalog-status" class="muted">Checking catalog…</p>
+      <button id="refresh" class="secondary" disabled>Refresh catalog</button>
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>

@@ -1,6 +1,6 @@
 import type { BadgeState } from "../feed/resolve-state";
 import { BADGE_CSS } from "./badge.css";
-import { gfnAppUrl, gfnPlayUrl } from "./gfn-link";
+import { resolveBannerLinks } from "./gfn-link";
 
 const STYLE_ID = "gfn-check-style";
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -69,18 +69,12 @@ function dot(doc: Document): HTMLElement {
  *  the browser link as the no-app fallback — a `geforcenow://` click is a dead
  *  end when the app isn't installed and extensions can't detect that.
  *
- *  Degradation on stale caches served after a failed refetch: v2 entry (gfnId
- *  only) → single web link; pre-v2 entry (no ids) → plain non-clickable div.
- *  The root stays a <div> in all cases (two sibling links — nesting anchors is
+ *  See `resolveBannerLinks` for how stale caches degrade to fewer links. The
+ *  root stays a <div> in all cases (two sibling links — nesting anchors is
  *  invalid), so placeBefore/placeAfter and the id-keyed re-injection are
  *  unaffected. */
 export function renderStoreBanner(doc: Document, state: BadgeState): HTMLElement {
-  const appUrl =
-    state.kind === "supported" && state.gfnId !== undefined && state.cmsId !== undefined
-      ? gfnAppUrl(state.cmsId, state.gfnId)
-      : null;
-  const webUrl =
-    state.kind === "supported" && state.gfnId !== undefined ? gfnPlayUrl(state.gfnId) : null;
+  const { appUrl, webUrl } = resolveBannerLinks(state);
   const mainUrl = appUrl ?? webUrl;
 
   const el = doc.createElement("div");

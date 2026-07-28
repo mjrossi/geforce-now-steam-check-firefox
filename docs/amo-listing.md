@@ -7,8 +7,8 @@ sync when the listing copy or build process changes.
 the **existing** add-on (Developer Hub → Manage My Submissions → Upload a New Version),
 **not** "Submit a New Add-on" — that errors with "Duplicate add-on ID".
 
-**Distribution:** listed channel ("On this site"), with the **"experimental"** flag
-checked while in beta (uncheck to promote to stable later).
+**Distribution:** listed channel ("On this site"). The **"experimental"** flag was
+unchecked as of 1.0.0 — leave it unchecked.
 
 ---
 
@@ -62,7 +62,7 @@ The extension caches NVIDIA's public GeForce NOW catalog locally, refreshed ever
 
 > No data collection, no analytics, no accounts. The only network request is to NVIDIA's public catalog at games.geforce.com. Nothing about you, your browsing, or your Steam account is ever sent anywhere.
 
-Beta release. Open source on [GitHub](https://github.com/mjrossi/geforce-now-steam-check-firefox) (MIT licensed) — bug reports welcome.
+Open source on [GitHub](https://github.com/mjrossi/geforce-now-steam-check-firefox) (MIT licensed) — bug reports welcome.
 
 *GeForce NOW and RTX are trademarks of NVIDIA Corporation; Steam is a trademark of Valve Corporation. This extension is an independent project not affiliated with or endorsed by NVIDIA or Valve.*
 ```
@@ -71,19 +71,20 @@ Beta release. Open source on [GitHub](https://github.com/mjrossi/geforce-now-ste
 
 ## Release notes (per-version field)
 
-First listed version (0.3.0) — frame as a first release, since AMO users never saw earlier versions (the 0.2.x listed attempts were superseded before approval):
+Keep these a tight user-facing changelog — what changed for *them*, not for the codebase.
+The full developer changelog lives in `CHANGELOG.md`.
+
+1.0.0 (first stable release — the experimental flag comes off with this version):
 
 ```
-First public beta release.
+First stable release.
 
-GeForce NOW check for Steam badges Steam store pages and your wishlist with whether each game is playable on NVIDIA GeForce NOW — so you can tell at a glance, without leaving Steam.
+- Fixed badges sometimes not appearing at all right after Firefox starts or the add-on updates. They now show "couldn't check" instead of nothing.
+- The toolbar popup now shows how many games are in the catalog and when it was last updated, with a "Refresh catalog" button if a badge ever looks out of date.
+- Wishlist badges keep up better when scrolling long lists.
 
-This is a beta: Steam's wishlist layout changes often, so if a badge ever looks wrong, please file a report on GitHub. Thanks for trying it!
+Thanks to everyone who tried the beta and filed reports.
 ```
-
-For later versions, switch to a tight user-facing changelog (what changed for *them*), e.g.
-`- Fixed wishlist badges not appearing on the new layout`. The full developer changelog
-lives in `CHANGELOG.md`.
 
 ---
 
@@ -193,4 +194,4 @@ https://github.com/mjrossi/geforce-now-steam-check-firefox
 4. AMO → existing add-on → Upload a New Version → **listed** channel.
 5. Upload package zip; answer source-required **Yes**; upload source zip + build instructions.
 6. Fill/confirm listing metadata, screenshots, summary, description, release notes.
-7. Check **experimental**; submit for review.
+7. Confirm **experimental** stays **unchecked**; submit for review.

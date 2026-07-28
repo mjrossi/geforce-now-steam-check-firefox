@@ -10,6 +10,11 @@ export const ANCHOR_CLASS = "gfn-check-anchor";
 /** Records which app id a slot was rendered for, so recycled virtualized rows
  *  (same container, different game) are re-badged instead of left stale. */
 export const APP_ID_ATTR = "data-gfn-app-id";
+/** Records *which badge* was rendered for that app id. A row can be painted
+ *  "couldn't check" while its lookup is still pending, then resolve moments
+ *  later — same app id, different badge — so the app id alone is not enough to
+ *  decide whether a slot is current. */
+export const STATE_ATTR = "data-gfn-state";
 
 // Legacy (server-rendered) wishlist rows. The modern wishlist is a virtualized
 // React list with hashed class names, so we can't rely on this — when it matches
@@ -89,23 +94,34 @@ export function findRows(root: Element): Map<number, HTMLElement> {
   return rows;
 }
 
-/** Badge each row idempotently. A row already carrying a slot for the *same* app
- *  id is left alone; a recycled row whose slot is for a different (stale) app id
- *  has it replaced. `pill` builds the badge element for an app id. */
+/** Badge each row idempotently. A row already carrying a slot for the same app
+ *  id *and* the same badge is left alone; anything else — a recycled row now
+ *  showing a different game, or a row whose pending lookup has since resolved —
+ *  has its slot replaced. `pill` builds the badge element for an app id;
+ *  `stateOf` names what that badge depicts (default: a single stable value, for
+ *  callers whose badges never change once drawn). */
 export function paint(
   doc: Document,
   rows: Map<number, HTMLElement>,
   pill: (appId: number) => HTMLElement,
+  stateOf: (appId: number) => string = () => "",
 ): void {
   for (const [appId, row] of rows) {
+    const state = stateOf(appId);
     const existing = row.querySelector<HTMLElement>(`.${PILL_SLOT}`);
     if (existing) {
-      if (existing.getAttribute(APP_ID_ATTR) === String(appId)) continue;
-      existing.remove(); // recycled row: drop the previous game's pill
+      if (
+        existing.getAttribute(APP_ID_ATTR) === String(appId) &&
+        existing.getAttribute(STATE_ATTR) === state
+      ) {
+        continue;
+      }
+      existing.remove(); // stale: recycled row, or a resolved pending lookup
     }
     const slot = doc.createElement("span");
     slot.className = PILL_SLOT;
     slot.setAttribute(APP_ID_ATTR, String(appId));
+    slot.setAttribute(STATE_ATTR, state);
     slot.appendChild(pill(appId));
 
     // Overlay the pill in the corner of the game's capsule so it reads as an

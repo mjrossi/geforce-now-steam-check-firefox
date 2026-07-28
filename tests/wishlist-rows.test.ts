@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import {
   APP_ID_ATTR,
   PILL_SLOT,
+  STATE_ATTR,
   findRows,
   paint,
   rowContainer,
@@ -140,5 +141,38 @@ describe("paint — idempotency & recycled rows", () => {
     expect(slots).toHaveLength(1);
     expect(slots[0]!.getAttribute(APP_ID_ATTR)).toBe("20");
     expect(slots[0]!.textContent).toBe("pill-20");
+  });
+
+  // The wishlist paints rows as "couldn't check" while their lookup is still
+  // pending. Without the state stamp the app id would match on the next run and
+  // the placeholder would never be replaced.
+  test("replaces the badge when the same app id resolves to a new state", () => {
+    document.body.innerHTML = `<div class="card"><a href="${link(10)}">A</a></div>`;
+    const row = document.querySelector<HTMLElement>(".card")!;
+    const rows = new Map([[10, row]]);
+    const labelled = (state: string) => (id: number) => {
+      const el = document.createElement("b");
+      el.textContent = `${state}-${String(id)}`;
+      return el;
+    };
+
+    paint(document, rows, labelled("unknown"), () => "unknown");
+    expect(row.querySelector(`.${PILL_SLOT}`)!.textContent).toBe("unknown-10");
+
+    paint(document, rows, labelled("supported"), () => "supported");
+    const slots = row.querySelectorAll(`.${PILL_SLOT}`);
+    expect(slots).toHaveLength(1);
+    expect(slots[0]!.textContent).toBe("supported-10");
+    expect(slots[0]!.getAttribute(STATE_ATTR)).toBe("supported");
+  });
+
+  test("leaves a slot alone when both the app id and the state are unchanged", () => {
+    document.body.innerHTML = `<div class="card"><a href="${link(10)}">A</a></div>`;
+    const row = document.querySelector<HTMLElement>(".card")!;
+    const rows = new Map([[10, row]]);
+    paint(document, rows, pill, () => "supported");
+    const first = row.querySelector(`.${PILL_SLOT}`);
+    paint(document, rows, pill, () => "supported");
+    expect(row.querySelector(`.${PILL_SLOT}`)).toBe(first); // same node, not re-created
   });
 });

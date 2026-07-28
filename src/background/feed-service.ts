@@ -1,5 +1,11 @@
 import type { GfnApp, GfnIndexEntry } from "../feed/types";
-import type { LookupRequest, LookupResponse } from "../shared/messages";
+import type {
+  BackgroundRequest,
+  LookupRequest,
+  LookupResponse,
+  RefreshResponse,
+  StatusResponse,
+} from "../shared/messages";
 import { loadIndex, type FeedCache, type LoadDeps } from "../feed/feed-cache";
 import { hasFeedPermission } from "../shared/permission";
 import { initPermissionGate } from "./permission-gate";
@@ -52,16 +58,22 @@ async function fetchAppsPage(after: string | null): Promise<AppsPage> {
 
 const CACHE_KEY = "gfn-feed-cache";
 const TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
-// Diagnostics toggles, read from browser.storage.local. Set in the extension
-// console with e.g. `browser.storage.local.set({ "gfn-debug": true })` to log
-// lookups, or `{ "gfn-force-refresh": true }` to refetch the feed once.
+// Per-lookup diagnostic logging, toggled from the extension console with
+// `browser.storage.local.set({ "gfn-debug": true })`. Mirrored into a local
+// variable rather than read per lookup: the wishlist sends a lookup per
+// debounced mutation batch, and a storage round trip on each one is pure waste.
 const DEBUG_KEY = "gfn-debug";
-const FORCE_REFRESH_KEY = "gfn-force-refresh";
+let debugEnabled = false;
 
-async function readFlag(key: string): Promise<boolean> {
-  const stored = await browser.storage.local.get(key);
-  return stored[key] === true;
-}
+void browser.storage.local.get(DEBUG_KEY).then((stored) => {
+  debugEnabled = stored[DEBUG_KEY] === true;
+});
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && DEBUG_KEY in changes) {
+    debugEnabled = changes[DEBUG_KEY]?.newValue === true;
+    log.info(`debug logging ${debugEnabled ? "enabled" : "disabled"}`);
+  }
+});
 
 // In-memory copy of the stored cache. Wishlist scrolling sends a lookup per
 // debounced mutation batch, and re-reading the ~150 KB cache from
@@ -103,11 +115,7 @@ const deps: LoadDeps = {
 /** Handle a lookup request: ensure the index is loaded, then return the subset
  *  of requested app ids that are supported. */
 async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
-  const debug = await readFlag(DEBUG_KEY);
-  const forceRefresh = await readFlag(FORCE_REFRESH_KEY);
-  if (forceRefresh) await browser.storage.local.remove(FORCE_REFRESH_KEY);
-
-  const result = await loadIndex({ ...deps, forceRefresh });
+  const result = await loadIndex(deps);
   if (!result.ok) {
     // No index and no cache. Distinguish the opt-in host permission not being
     // granted (the common "works in `web-ext run`, blank when installed" case)
@@ -121,7 +129,7 @@ async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
     const hit = result.index[String(appId)];
     if (hit) found[String(appId)] = hit;
   }
-  if (debug) {
+  if (debugEnabled) {
     log.info(`index size=${Object.keys(result.index).length}`);
     for (const appId of req.appIds) {
       const hit = result.index[String(appId)];
@@ -131,6 +139,33 @@ async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
   return { ok: true, found };
 }
 
+/** Describe the cached catalog for the popup. Reads the cache only — it must
+ *  never trigger a fetch, or opening the popup would kick off catalog traffic. */
+async function handleStatus(): Promise<StatusResponse> {
+  const cache = await deps.getCache();
+  if (cache === null) return null;
+  return { count: Object.keys(cache.index).length, fetchedAt: cache.fetchedAt };
+}
+
+/** Refetch the catalog now, ignoring the TTL — the user-facing recovery path for
+ *  a badge that looks wrong.
+ *
+ *  Success is judged by whether `fetchedAt` advanced, not by `loadIndex`'s `ok`:
+ *  when a fetch fails but a cache exists, `loadIndex` deliberately reports `ok`
+ *  and serves the stale index (that's the "never a false not-supported"
+ *  invariant). Correct for a lookup, wrong for a refresh button — the user would
+ *  be told it worked while the timestamp sat still. */
+async function handleRefresh(): Promise<RefreshResponse> {
+  log.info("manual catalog refresh requested");
+  const before = await handleStatus();
+  await loadIndex({ ...deps, forceRefresh: true });
+  const status = await handleStatus();
+
+  const refetched = status !== null && (before === null || status.fetchedAt > before.fetchedAt);
+  log.info(refetched ? "manual refresh succeeded" : "manual refresh failed (cache unchanged)");
+  return { ok: refetched, status };
+}
+
 /** Refresh the feed cache out of band (e.g. right after the user grants the host
  *  permission) so the next lookup is served from a warm cache. */
 async function warmFeed(): Promise<void> {
@@ -138,10 +173,22 @@ async function warmFeed(): Promise<void> {
   log.info(result.ok ? "feed cache warmed" : "feed warm failed (still unavailable)");
 }
 
-browser.runtime.onMessage.addListener((message: unknown): Promise<LookupResponse> | undefined => {
-  const req = message as Partial<LookupRequest>;
-  if (req?.type !== "gfn-lookup" || !Array.isArray(req.appIds)) return undefined;
-  return handleLookup(req as LookupRequest);
+// Returning a promise answers the sender; returning undefined declines the
+// message so other listeners (and other extensions) can handle it.
+browser.runtime.onMessage.addListener((message: unknown): Promise<unknown> | undefined => {
+  const req = message as Partial<BackgroundRequest>;
+  switch (req?.type) {
+    case "gfn-lookup":
+      return Array.isArray((req as Partial<LookupRequest>).appIds)
+        ? handleLookup(req as LookupRequest)
+        : undefined;
+    case "gfn-status":
+      return handleStatus();
+    case "gfn-refresh":
+      return handleRefresh();
+    default:
+      return undefined;
+  }
 });
 
 // Firefox MV3: host permissions are opt-in and NOT granted on a normal install,

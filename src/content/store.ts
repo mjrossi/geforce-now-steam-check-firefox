@@ -1,6 +1,7 @@
 import { parseAppId } from "../feed/parse-app-id";
 import { resolveState, type BadgeState } from "../feed/resolve-state";
-import type { LookupRequest, LookupResponse } from "../shared/messages";
+import { lookup } from "../shared/lookup";
+import { debounce } from "../shared/debounce";
 import { ensureStyles, placeAfter, placeBefore, renderStoreBanner } from "../badge/badge";
 import { log } from "../shared/log";
 
@@ -30,9 +31,7 @@ function paint(): void {
 async function run(): Promise<void> {
   const appId = parseAppId(location.href);
   if (appId === null) return;
-  const req: LookupRequest = { type: "gfn-lookup", appIds: [appId] };
-  const response = (await browser.runtime.sendMessage(req)) as LookupResponse;
-  state = resolveState(appId, response);
+  state = resolveState(appId, await lookup([appId]));
   log.info(`store app ${appId} -> ${state.kind}`);
   paint();
 }
@@ -40,8 +39,10 @@ async function run(): Promise<void> {
 void run();
 
 // Re-inject if Steam or another extension (Augmented Steam / alike03's) rebuilds
-// the purchase area after us. paint() is a no-op while our node is present.
-new MutationObserver(() => paint()).observe(document.body, {
+// the purchase area after us. paint() is a no-op while our node is present, but
+// debounce anyway: store pages mutate constantly (carousels, live player counts)
+// and there is no reason to re-check the DOM on every one.
+new MutationObserver(debounce(paint, 300)).observe(document.body, {
   childList: true,
   subtree: true,
 });
