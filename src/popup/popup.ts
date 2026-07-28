@@ -1,5 +1,6 @@
 import { hasFeedPermission, requestFeedPermission } from "../shared/permission";
-import type { RefreshRequest, RefreshResponse, StatusRequest, StatusResponse } from "../shared/messages";
+import type { RefreshRequest, StatusRequest, StatusResponse } from "../shared/messages";
+import { asStatus, isRefreshResponse } from "../shared/messages";
 import { formatAge } from "../shared/format-age";
 import { log } from "../shared/log";
 
@@ -24,8 +25,14 @@ function render(granted: boolean): void {
 }
 
 /** Describe the cached catalog. This is the line a user reads back to us when
- *  reporting a badge that looks wrong, so it names both size and age. */
-function renderCatalog(status: StatusResponse): void {
+ *  reporting a badge that looks wrong, so it names both size and age — and keeps
+ *  "we couldn't ask" distinct from "there is no catalog yet", which are very
+ *  different bug reports. */
+function renderCatalog(status: StatusResponse | undefined): void {
+  if (status === undefined) {
+    catalogStatus.textContent = "Couldn't reach the extension's background service.";
+    return;
+  }
   if (status === null) {
     catalogStatus.textContent = "Catalog not loaded yet.";
     return;
@@ -34,15 +41,20 @@ function renderCatalog(status: StatusResponse): void {
   catalogStatus.textContent = `Catalog: ${games} games · updated ${formatAge(Date.now() - status.fetchedAt)}`;
 }
 
-/** Ask the background something, or `null` if it can't be reached. Same event-page
- *  startup window the content scripts guard against — here an unhandled throw
- *  would strand the popup on its placeholder text. */
-async function ask<T>(req: StatusRequest | RefreshRequest): Promise<T | null> {
+/** Send a message to the background, or `undefined` if it can't be reached.
+ *
+ *  Same event-page startup window the content scripts guard against (see
+ *  shared/lookup.ts), and the same rule: an unhandled throw would strand the
+ *  popup on its placeholder text. `sendMessage` also *resolves* with `undefined`
+ *  when a listener declines the message — which is what an older background does
+ *  mid-update for a message type it has never heard of — so callers validate the
+ *  reply rather than casting it. */
+async function send(req: StatusRequest | RefreshRequest): Promise<unknown> {
   try {
-    return (await browser.runtime.sendMessage(req)) as T;
+    return await browser.runtime.sendMessage(req);
   } catch (err) {
     log.warn("popup: background unreachable —", err);
-    return null;
+    return undefined;
   }
 }
 
@@ -66,11 +78,14 @@ refreshBtn.addEventListener("click", async () => {
   refreshBtn.textContent = "Refreshing…";
   catalogStatus.textContent = "Fetching the GeForce NOW catalog…";
 
-  const result = await ask<RefreshResponse>({ type: "gfn-refresh" });
+  const reply = await send({ type: "gfn-refresh" });
+  const result = isRefreshResponse(reply) ? reply : null;
   log.info("popup: refresh returned ok =", result?.ok);
 
   refreshBtn.textContent = "Refresh catalog";
-  refreshBtn.disabled = false;
+  // Re-enable per the *current* grant state: the permission can be revoked while
+  // the popup is open, and re-enabling into that state only invites a failure.
+  refreshBtn.disabled = !(await hasFeedPermission());
   if (result?.ok) {
     renderCatalog(result.status);
     // A page showing "couldn't check" (or a since-corrected answer) only picks
@@ -86,5 +101,5 @@ void (async () => {
   log.info("popup: opened, permission granted =", granted);
   render(granted);
 
-  renderCatalog(await ask<StatusResponse>({ type: "gfn-status" }));
+  renderCatalog(asStatus(await send({ type: "gfn-status" })));
 })();

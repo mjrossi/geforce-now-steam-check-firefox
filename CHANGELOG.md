@@ -25,8 +25,28 @@ coverage — this release is about surviving and supporting a wider install base
   pill injection. Lookups are now memoized per tab and only newly seen games are
   requested; transient states stay retryable, so badges self-heal once the network
   recovers or the permission is granted.
+- **Store banners recover on their own.** A game page that painted "couldn't check" or
+  "Enable in the toolbar" kept that banner until the tab was reloaded: the page was only
+  looked up once, and the re-injection observer left an existing banner alone. Store
+  banners now carry a state stamp like wishlist pills do, and a non-definitive answer is
+  retried on a backoff — and immediately when the tab is brought back to the foreground,
+  which is exactly when a user returns from granting the permission in the popup.
+- **The popup can't be stranded by an unrecognized reply.** `runtime.sendMessage`
+  *resolves* with `undefined` when a listener declines a message — what an older
+  background does mid-update for a message type it has never heard of — and the popup
+  cast the reply instead of checking it, throwing before it could render anything. Replies
+  are now validated, and "couldn't reach the background" reads differently from "no
+  catalog cached yet".
+- **One catalog fetch, not one per tab.** Restoring a session with several Steam tabs
+  open woke them all within milliseconds of each other, and on an expired cache each
+  independently drove a full paginated catalog fetch. Loads are now shared and
+  serialized: a burst collapses onto a single fetch (sharing its failure too, rather
+  than retrying it once per tab while offline), and a manual refresh can no longer
+  interleave with a lookup-driven one.
 - Internal: `resolveBannerLinks` splits store-banner link resolution out of DOM building,
-  making the stale-cache degradation matrix directly testable.
+  making the stale-cache degradation matrix directly testable. The refresh success rule,
+  the load coordinator, and the wishlist memo likewise moved into pure modules
+  (`feed/refresh.ts`, `feed/load-coordinator.ts`, `content/wishlist-memo.ts`) with tests.
 
 ## [0.4.0] — 2026-07-04
 

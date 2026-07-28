@@ -6,7 +6,9 @@ import type {
   RefreshResponse,
   StatusResponse,
 } from "../shared/messages";
-import { loadIndex, type FeedCache, type LoadDeps } from "../feed/feed-cache";
+import { type FeedCache, type LoadDeps } from "../feed/feed-cache";
+import { createLoadCoordinator } from "../feed/load-coordinator";
+import { readStatus, refreshCatalog } from "../feed/refresh";
 import { hasFeedPermission } from "../shared/permission";
 import { initPermissionGate } from "./permission-gate";
 import { log } from "../shared/log";
@@ -112,10 +114,14 @@ const deps: LoadDeps = {
   ttlMs: TTL_MS,
 };
 
+// All catalog loads go through here: concurrent lookups share one fetch, and a
+// manual refresh can't interleave with a lookup-driven one.
+const catalog = createLoadCoordinator(deps);
+
 /** Handle a lookup request: ensure the index is loaded, then return the subset
  *  of requested app ids that are supported. */
 async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
-  const result = await loadIndex(deps);
+  const result = await catalog.load();
   if (!result.ok) {
     // No index and no cache. Distinguish the opt-in host permission not being
     // granted (the common "works in `web-ext run`, blank when installed" case)
@@ -139,37 +145,21 @@ async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
   return { ok: true, found };
 }
 
-/** Describe the cached catalog for the popup. Reads the cache only — it must
- *  never trigger a fetch, or opening the popup would kick off catalog traffic. */
-async function handleStatus(): Promise<StatusResponse> {
-  const cache = await deps.getCache();
-  if (cache === null) return null;
-  return { count: Object.keys(cache.index).length, fetchedAt: cache.fetchedAt };
+function handleStatus(): Promise<StatusResponse> {
+  return readStatus(() => deps.getCache());
 }
 
-/** Refetch the catalog now, ignoring the TTL — the user-facing recovery path for
- *  a badge that looks wrong.
- *
- *  Success is judged by whether `fetchedAt` advanced, not by `loadIndex`'s `ok`:
- *  when a fetch fails but a cache exists, `loadIndex` deliberately reports `ok`
- *  and serves the stale index (that's the "never a false not-supported"
- *  invariant). Correct for a lookup, wrong for a refresh button — the user would
- *  be told it worked while the timestamp sat still. */
 async function handleRefresh(): Promise<RefreshResponse> {
   log.info("manual catalog refresh requested");
-  const before = await handleStatus();
-  await loadIndex({ ...deps, forceRefresh: true });
-  const status = await handleStatus();
-
-  const refetched = status !== null && (before === null || status.fetchedAt > before.fetchedAt);
-  log.info(refetched ? "manual refresh succeeded" : "manual refresh failed (cache unchanged)");
-  return { ok: refetched, status };
+  const result = await refreshCatalog(() => deps.getCache(), catalog.forceLoad);
+  log.info(result.ok ? "manual refresh succeeded" : "manual refresh failed (cache unchanged)");
+  return result;
 }
 
 /** Refresh the feed cache out of band (e.g. right after the user grants the host
  *  permission) so the next lookup is served from a warm cache. */
 async function warmFeed(): Promise<void> {
-  const result = await loadIndex(deps);
+  const result = await catalog.load();
   log.info(result.ok ? "feed cache warmed" : "feed warm failed (still unavailable)");
 }
 

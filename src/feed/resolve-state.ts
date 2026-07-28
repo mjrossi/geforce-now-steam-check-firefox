@@ -20,3 +20,13 @@ export function resolveState(appId: number, response: LookupResponse): BadgeStat
   if (hit) return { kind: "supported", rtx: hit.rtx, gfnId: hit.gfnId, cmsId: hit.cmsId };
   return { kind: "not-supported" };
 }
+
+/** Is this a real answer, or just "not yet"?
+ *
+ *  "unknown" (background asleep, or offline) and "needs-permission" (feed origin
+ *  not granted) are transient: they must never be memoized or frozen into a page,
+ *  or a badge that could self-heal stays wrong for the life of the tab. Both
+ *  content scripts key their retry behaviour off this. */
+export function isDefinitive(state: BadgeState): boolean {
+  return state.kind === "supported" || state.kind === "not-supported";
+}
