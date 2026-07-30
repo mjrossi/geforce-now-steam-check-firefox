@@ -76,6 +76,69 @@ describe("findRows — modern (virtualized) layout", () => {
   });
 });
 
+// An element holds one pill slot, so two ids mapped to the same element both
+// claim it: paint() reads the other's slot as stale and swaps in its own, leaving
+// the row showing the wrong game and re-swapping on every pass — which wakes the
+// observer that schedules the next one. findRows drops the later claim instead.
+describe("findRows — one element badges at most one game", () => {
+  test("a legacy row naming a second game keeps only its own", () => {
+    document.body.innerHTML = `
+      <div id="wishlist_ctn">
+        <div class="wishlist_row">
+          <a href="${link(10)}"><img src="${cap(10)}"></a>
+          <a href="${link(99)}">also in this bundle</a>
+        </div>
+      </div>`;
+    const rows = findRows(document.body);
+    expect([...rows.keys()]).toEqual([10]);
+  });
+
+  test("an anchor whose nested capsule names a different game keeps the href's", () => {
+    // The link seeds 10 and stops climbing at the anchor (its parent holds two
+    // ids); the image seeds 99 and climbs *into* that same anchor. The href is
+    // the authoritative id, which is why links are seeded first.
+    document.body.innerHTML = `
+      <div id="list">
+        <div class="card"><a href="${link(10)}"><img src="${cap(99)}"></a></div>
+      </div>`;
+    const rows = findRows(document.body);
+    expect([...rows.keys()]).toEqual([10]);
+  });
+
+  test("the resulting rows repaint without churning the DOM", () => {
+    document.body.innerHTML = `
+      <div id="wishlist_ctn">
+        <div class="wishlist_row">
+          <a href="${link(10)}"><img src="${cap(10)}"></a>
+          <a href="${link(99)}">also in this bundle</a>
+        </div>
+      </div>`;
+    const rows = findRows(document.body);
+    const pill = (id: number) => {
+      const el = document.createElement("b");
+      el.textContent = `pill-${String(id)}`;
+      return el;
+    };
+    const settled = () => "supported";
+
+    paint(document, rows, pill, settled);
+    const slots = document.querySelectorAll(`.${PILL_SLOT}`);
+    expect(slots).toHaveLength(1);
+    expect(slots[0]!.getAttribute(APP_ID_ATTR)).toBe("10");
+
+    // A settled row must not mutate again, or the MutationObserver driving run()
+    // is re-armed by our own paint and the page never comes to rest.
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(document.body, { childList: true, subtree: true });
+    paint(document, rows, pill, settled);
+    const touched = observer
+      .takeRecords()
+      .reduce((n, r) => n + r.addedNodes.length + r.removedNodes.length, 0);
+    observer.disconnect();
+    expect(touched).toBe(0);
+  });
+});
+
 describe("rowContainer", () => {
   test("does not climb past the provided root", () => {
     document.body.innerHTML = `<div id="root"><div class="block"><a href="${link(10)}">x</a></div></div>`;

@@ -71,15 +71,35 @@ export function rowContainer(seed: HTMLElement, appId: number, root: Element): H
 }
 
 /** Collect one row element per wishlisted game within `root`. This is the part
- *  to re-verify against the live wishlist DOM if rendering ever breaks again. */
+ *  to re-verify against the live wishlist DOM if rendering ever breaks again.
+ *
+ *  **One element badges at most one game, and that is enforced here.** An element
+ *  holds a single pill slot, so two ids mapped to the same element both claim it:
+ *  `paint` finds the other id's slot, reads it as stale, and swaps in its own. The
+ *  row then shows the *wrong* game's availability — the authoritative-looking wrong
+ *  answer this extension is built to avoid — and re-swaps on every pass, each swap
+ *  waking the observer that schedules the next one. Two shapes reach it: a legacy
+ *  row that names a second game (a bundle link, or one injected by another
+ *  extension), and an `<a href="/app/A">` wrapping an `/apps/B/` capsule, where the
+ *  link stops its climb at the anchor and the image climbs into it. The later claim
+ *  is dropped, so the row degrades to *no* badge rather than a confident wrong one. */
 export function findRows(root: Element): Map<number, HTMLElement> {
   const rows = new Map<number, HTMLElement>();
+  const claimed = new Set<HTMLElement>();
+  // First claim wins, which is why seed order below is deliberate.
+  function claim(id: number, el: HTMLElement): void {
+    if (rows.has(id) || claimed.has(el)) return;
+    claimed.add(el);
+    rows.set(id, el);
+  }
 
   const legacy = root.querySelectorAll<HTMLElement>(LEGACY_ROW_SELECTOR);
   if (legacy.length > 0) {
     for (const row of legacy) {
       if (inChrome(row)) continue;
-      for (const id of appIdsIn(row)) if (!rows.has(id)) rows.set(id, row);
+      // Document order, so the row's own capsule/title link is claimed before any
+      // secondary game it happens to mention further down.
+      for (const id of appIdsIn(row)) claim(id, row);
     }
     if (rows.size > 0) return rows;
   }
@@ -87,7 +107,8 @@ export function findRows(root: Element): Map<number, HTMLElement> {
   // Modern layout: seed from every app link and capsule image (outside chrome),
   // dedupe per id, and climb each seed to its single-game block. Links first,
   // then images — not document order: the first seed for an id decides that
-  // game's row, and a link is the more reliable starting point.
+  // game's row, and a link is the more reliable starting point (it is also what
+  // makes the href, not a mismatched nested capsule, win the shared element).
   const seeds: HTMLElement[] = [
     ...root.querySelectorAll<HTMLElement>(APP_LINK),
     ...root.querySelectorAll<HTMLElement>(CAPSULE),
@@ -96,7 +117,7 @@ export function findRows(root: Element): Map<number, HTMLElement> {
     if (inChrome(seed)) continue;
     const id = appIdOf(seed);
     if (id === null || rows.has(id)) continue;
-    rows.set(id, rowContainer(seed, id, root));
+    claim(id, rowContainer(seed, id, root));
   }
   return rows;
 }
