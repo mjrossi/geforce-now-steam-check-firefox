@@ -14,7 +14,7 @@ Times are rough: **§A ~15 min** (mostly a 4-minute wait), **§B ~10 min**, **§
 
 Automated and mutation-checked; re-doing them by hand is wasted time.
 
-- Backoff schedule, in-flight dedupe, definitive-vs-transient retry rules — `tests/store-controller.test.ts`
+- Definitive-vs-transient rules and the badge state stamp — `tests/resolve-state.test.ts`
 - Refresh success/failure reporting, including the concurrent-write case — `tests/refresh.test.ts`
 - Stale-cache-over-false-negative, `refetched` semantics — `tests/feed-cache.test.ts`
 - Concurrent load sharing and serialization — `tests/load-coordinator.test.ts`
@@ -204,34 +204,23 @@ flips but that line is absent, something else fixed it and the channel is not wo
 **"Not available"**. Hit Refresh; ✅ pills flip to **"GeForce NOW"** without a reload, and the
 console shows `wishlist: new catalog published, re-checking visible rows`.
 
-### A.2 · A page that gave up retrying revives when you come back (focus path)
+### A.2 · A slow background start recovers, and giving up is deliberate
 
-The bug: `visibilitychange` was relied on to catch the user returning from the toolbar
-popup, and never fires for it — opening a browser-action popup leaves the tab `visible`.
-Once the ~3-minute backoff expired, a non-definitive banner was stuck until reload.
+Two short retries (2 s, 10 s) cover a page opened while the MV3 event-page background is
+still waking. After that the banner stays "couldn't check" until reload — **on purpose**,
+not a defect. A long backoff with focus/visibility revival used to live here and was removed:
+it spent ~130 lines and a test file rescuing a failure that says plainly it doesn't know and
+that a reload fixes, and it misfired on the common case by restarting on every window focus.
 
-Note this no longer involves the permission at all. Withholding the feed grant doesn't
-break anything, so the way to produce a stuck banner is to break the *network*:
-
-1. Any mode. `await browser.storage.local.clear()`, then **Reload** the extension.
+1. `await browser.storage.local.clear()`, then **Reload** the extension.
 2. Break the catalog fetch — see [Making the catalog fetch fail](#making-the-catalog-fetch-fail).
-3. Open <https://store.steampowered.com/app/1091500/>. Banner reads
+3. Open <https://store.steampowered.com/app/1091500/>. ✅ Banner reads
    **"GeForce NOW: couldn't check"**.
-4. **Wait 4 minutes.** Non-negotiable — the backoff is `2 + 5 + 15 + 45 + 120 s`, exhausted
-   at ~3 min 07 s. Waiting past it is what proves the fix rather than the backoff. Set a timer.
-5. Undo the break (restore the proxy setting / hosts line). **Don't touch the page, don't
-   reload, don't switch tabs.**
-6. ✅ The banner is still "couldn't check" — confirming it really had given up.
-7. Click the toolbar icon to open the popup, then dismiss it by clicking on the page.
-   **Click nothing inside the popup.** If the feed grant is missing it will offer *Allow
-   direct catalog access*, and taking it fires `warmFeed()` → a successful fetch → an epoch
-   broadcast, so the banner would heal by the *epoch* path and the test would pass without
-   exercising the focus retry at all.
-8. ✅ The banner resolves within a couple of seconds, no reload. The background log shows a
-   fresh `fetching GeForce NOW catalog…` as the popup closes.
-
-Step 7 fires `window` `focus` but **not** `visibilitychange`, which is exactly the path that
-was broken. Before this release, the banner stayed stuck indefinitely.
+4. Undo the break **within a few seconds**.
+5. ✅ Within ~10 s the banner resolves to **"Playable on GeForce NOW"**, no reload.
+6. Repeat steps 1–3, but this time wait **30 seconds** before undoing the break.
+7. ✅ The banner stays "couldn't check" — the retries are spent. Reload the page; ✅ it
+   resolves. This is the intended trade, so confirm it rather than filing it.
 
 ### A.3 · A failed refresh says so, and keeps the catalog line
 
@@ -247,16 +236,7 @@ was broken. Before this release, the banner stayed stuck indefinitely.
    message, because it's a different bug report.
 7. Undo the break, press Refresh. ✅ Recovers to a normal catalog line.
 
-### A.4 · The same, via a tab switch (visibilitychange path)
-
-Identical setup to §A.2, but return to the page a different way — this covers the event the
-popup path can't reach.
-
-1. Repeat §A.2 steps 1–6, so the banner is stuck at "couldn't check" and you're back online.
-2. Switch to another tab, then switch back.
-3. ✅ The banner resolves without a reload.
-
-### A.5 · The permission model is honest
+### A.4 · The permission model is honest
 
 New this release, and the reason to check it: the feed grant is optional, and the grant that
 actually matters is the one nobody thinks about.
@@ -370,6 +350,8 @@ it any more.
 - [ ] Supported banner's **Play** chip opens the GFN app; **web ↗** opens
       play.geforcenow.com.
 - [ ] No unhandled errors in the background console across a full session.
+- [ ] Store retry logic has **no unit test** — it is six lines inlined in the
+      side-effecting `store.ts`, which a test cannot import. §A.2 is its only coverage.
 - [ ] No unhandled errors in the page console on either content-script surface.
 
 ---

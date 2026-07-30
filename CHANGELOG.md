@@ -25,14 +25,13 @@ coverage — this release is about surviving and supporting a wider install base
   pill injection. Lookups are now memoized per tab and only newly seen games are
   requested; transient states stay retryable, so badges self-heal once the network
   recovers.
-- **Store banners recover on their own.** A game page that painted "couldn't check" kept
-  that banner until the tab was reloaded: the page was only looked up once, and the
-  re-injection observer left an existing banner alone. Store banners now carry a state stamp
-  like wishlist pills do, and a non-definitive answer is retried on a backoff — and
-  immediately when you come back to the page, whether from another tab or from the toolbar
-  popup. (Those are two different browser events; opening the popup does not change a tab's
-  visibility, so listening for only the tab switch missed the case where a user goes to the
-  toolbar and comes straight back.)
+- **Store banners recover from a slow start.** A game page opened while the add-on's
+  background was still waking painted "couldn't check" and kept it until the tab was
+  reloaded — it was only ever looked up once. It now retries briefly (2s, then 10s), which
+  covers that case; after that the banner stays "couldn't check" until you reload, which is
+  deliberate. A badge that says it doesn't know is honest and cheap to fix; the failure worth
+  guarding against is a confident *wrong* answer, and that is handled separately — a stale
+  catalog is always preferred over reporting "not available".
 - **"Refresh catalog" now fixes the page you pressed it on.** It refetched the catalog
   but nothing told the already-open Steam pages, so a badge you pressed it *because of*
   kept its old answer until you reloaded — and a wrong "Not on GeForce NOW", being a
@@ -90,7 +89,7 @@ coverage — this release is about surviving and supporting a wider install base
   making the stale-cache degradation matrix directly testable. The refresh success rule,
   the load coordinator, the wishlist memo, and the store page's retry state machine
   likewise moved into pure modules (`feed/refresh.ts`, `feed/load-coordinator.ts`,
-  `content/wishlist-memo.ts`, `content/store-controller.ts`) with tests. 85 → 140 tests.
+  `content/wishlist-memo.ts`) with tests. 85 → 127 tests.
 
 ## [0.4.0] — 2026-07-04
 
