@@ -55,15 +55,35 @@ export interface RefreshResponse {
   status: StatusResponse;
 }
 
-/** Guards for every reply shape above, kept next to the types they validate.
+/** Guards for every shape that crosses the message boundary, kept next to the
+ *  types they validate.
  *
  *  `runtime.sendMessage` *resolves* with `undefined` when a listener declines a
  *  message — which is what an older background does mid-update for a message
  *  type it has never heard of — so replies are validated, never cast. Casting
  *  put `undefined.count` one property access away from stranding the popup on
- *  its placeholder text. */
+ *  its placeholder text.
+ *
+ *  The same rule applies in the inbound direction, and for a stronger reason:
+ *  `runtime.onMessage` hears from every content script and from other extensions,
+ *  so the background's listener has less claim on its input than the popup has on
+ *  a reply. Only `gfn-lookup` carries a payload, so it is the only request with a
+ *  guard; the other two are their `type` and nothing else. */
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/** Validate an inbound lookup, *including* its elements: `appIds` reaches the
+ *  index as `String(appId)`, and a non-number there would silently look up a key
+ *  that cannot exist and read back as a confident "not supported". */
+export function isLookupRequest(value: unknown): value is LookupRequest {
+  if (!isObject(value)) return false;
+  const r = value as Partial<LookupRequest>;
+  return (
+    r.type === "gfn-lookup" &&
+    Array.isArray(r.appIds) &&
+    r.appIds.every((id) => typeof id === "number")
+  );
 }
 
 export function isLookupResponse(value: unknown): value is LookupResponse {

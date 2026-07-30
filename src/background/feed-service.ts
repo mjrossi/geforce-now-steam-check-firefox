@@ -6,6 +6,7 @@ import type {
   RefreshResponse,
   StatusResponse,
 } from "../shared/messages";
+import { isLookupRequest } from "../shared/messages";
 import { type FeedCache, type LoadDeps } from "../feed/feed-cache";
 import { type AppsPage, fetchAllPages } from "../feed/fetch-catalog";
 import { createLoadCoordinator } from "../feed/load-coordinator";
@@ -178,12 +179,12 @@ async function warmFeed(): Promise<void> {
 // Returning a promise answers the sender; returning undefined declines the
 // message so other listeners (and other extensions) can handle it.
 browser.runtime.onMessage.addListener((message: unknown): Promise<unknown> | undefined => {
-  const req = message as Partial<BackgroundRequest>;
+  const req = message as Partial<BackgroundRequest> | null;
   switch (req?.type) {
     case "gfn-lookup":
-      return Array.isArray((req as Partial<LookupRequest>).appIds)
-        ? handleLookup(req as LookupRequest)
-        : undefined;
+      // Validated rather than cast — see messages.ts. A malformed lookup is
+      // declined like any other message we don't handle.
+      return isLookupRequest(message) ? handleLookup(message) : undefined;
     case "gfn-status":
       return handleStatus();
     case "gfn-refresh":
