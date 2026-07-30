@@ -65,23 +65,30 @@ access** button is present only while the optional grant is missing.
 
 ### Making the catalog fetch fail
 
-Several §A tests need a *failed* fetch. Firefox no longer has **Work Offline** — it was
-removed from the UI — and DevTools network throttling won't do it either: it applies to the
-tab you opened it on, while the fetch happens in the background page.
+Several §A tests need a *failed* catalog fetch **while Steam still loads normally** — the
+banner is painted by a content script on a working game page, so killing the whole browser's
+network makes the test impossible to set up. Note also that Firefox has removed **Work
+Offline**, and DevTools throttling is no substitute: it applies to the tab you opened it on,
+while the fetch runs in the background page.
 
-**Preferred — point Firefox at a dead proxy.** Precise, instantly reversible, needs no sudo,
-and leaves the rest of the machine online:
+**Preferred — proxy everything except Steam.** No sudo, unaffected by DNS-over-HTTPS,
+reversible from the same dialog, and it fails instantly instead of making you sit through a
+timeout on top of §A.2's four-minute wait:
 
-1. Firefox Settings → **General** → scroll to the bottom → **Network Settings** → *Settings…*
-2. **Manual proxy configuration**, HTTP Proxy `127.0.0.1`, Port `1`, tick **Also use this
-   proxy for HTTPS**. OK.
-3. Every Firefox request now fails immediately — including the extension's — with no timeout
-   to wait out.
-4. Undo by setting it back to **Use system proxy settings**.
+1. Firefox Settings → **General** → bottom → **Network Settings** → *Settings…*
+2. **Manual proxy configuration**: HTTP Proxy `127.0.0.1`, Port `1`, tick **Also use this
+   proxy for HTTPS**.
+3. In **No proxy for**, paste:
+   ```
+   store.steampowered.com, .steamstatic.com, steamcommunity.com
+   ```
+   Steam and its CDN then load normally — leave the CDN out and the page renders unstyled,
+   which is a poor surface to judge banner placement on. `games.geforce.com` has no
+   exception, so the catalog fetch dies at once.
+4. Undo by selecting **Use system proxy settings**.
 
-**Simplest** — turn off Wi-Fi or unplug the cable. Works, but takes the whole machine with it.
-
-**Most surgical** — blackhole just the catalog host, leaving everything else reachable:
+**Alternative — blackhole just the catalog host.** Fewer moving parts, but Firefox's
+DNS-over-HTTPS can resolve past `/etc/hosts`, so verify it actually took:
 
 ```bash
 echo "127.0.0.1 games.geforce.com" | sudo tee -a /etc/hosts
@@ -89,8 +96,14 @@ sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder   # macOS
 # undo: edit /etc/hosts and delete that line
 ```
 
-Whichever you pick, confirm it worked: the background console logs
-`[gfn-check] feed fetch failed` rather than `catalog fetched: … apps`.
+**Deterministic — point the build at a dead host.** Change `GRAPHQL_URL` in
+`src/background/feed-service.ts` to `https://gfn-check.invalid/graphql`, `just build`,
+reload the extension. Nothing else in the request path changes, and no browser settings are
+touched. Remember to revert and rebuild — you are testing a modified artifact.
+
+**Confirm it took, whichever you chose.** The background console must log
+`[gfn-check] feed fetch failed`, not `catalog fetched: … apps`. §A.2 has a four-minute wait
+in the middle; you don't want to learn at step 8 that you were online the whole time.
 
 ### Consoles
 
@@ -206,8 +219,8 @@ break anything, so the way to produce a stuck banner is to break the *network*:
    **"GeForce NOW: couldn't check"**.
 4. **Wait 4 minutes.** Non-negotiable — the backoff is `2 + 5 + 15 + 45 + 120 s`, exhausted
    at ~3 min 07 s. Waiting past it is what proves the fix rather than the backoff. Set a timer.
-5. Restore the network (undo the proxy setting). **Don't touch the page, don't reload,
-   don't switch tabs.**
+5. Undo the break (restore the proxy setting / hosts line). **Don't touch the page, don't
+   reload, don't switch tabs.**
 6. ✅ The banner is still "couldn't check" — confirming it really had given up.
 7. Click the toolbar icon to open the popup, then dismiss it by clicking on the page.
 8. ✅ The banner resolves within a couple of seconds, no reload.
@@ -227,7 +240,7 @@ was broken. Before this release, the banner stayed stuck indefinitely.
 6. Now `await browser.storage.local.clear()`, reload the extension, still broken, press
    Refresh again. ✅ Reads **"Refresh failed — no catalog cached yet."** — a different
    message, because it's a different bug report.
-7. Restore the network, press Refresh. ✅ Recovers to a normal catalog line.
+7. Undo the break, press Refresh. ✅ Recovers to a normal catalog line.
 
 ### A.4 · The same, via a tab switch (visibilitychange path)
 
