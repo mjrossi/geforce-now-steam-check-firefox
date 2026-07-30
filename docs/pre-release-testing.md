@@ -63,6 +63,35 @@ and §D, which exercise the grant UI itself.
 To check which grant state you're actually in, open the popup: the **Allow direct catalog
 access** button is present only while the optional grant is missing.
 
+### Making the catalog fetch fail
+
+Several §A tests need a *failed* fetch. Firefox no longer has **Work Offline** — it was
+removed from the UI — and DevTools network throttling won't do it either: it applies to the
+tab you opened it on, while the fetch happens in the background page.
+
+**Preferred — point Firefox at a dead proxy.** Precise, instantly reversible, needs no sudo,
+and leaves the rest of the machine online:
+
+1. Firefox Settings → **General** → scroll to the bottom → **Network Settings** → *Settings…*
+2. **Manual proxy configuration**, HTTP Proxy `127.0.0.1`, Port `1`, tick **Also use this
+   proxy for HTTPS**. OK.
+3. Every Firefox request now fails immediately — including the extension's — with no timeout
+   to wait out.
+4. Undo by setting it back to **Use system proxy settings**.
+
+**Simplest** — turn off Wi-Fi or unplug the cable. Works, but takes the whole machine with it.
+
+**Most surgical** — blackhole just the catalog host, leaving everything else reachable:
+
+```bash
+echo "127.0.0.1 games.geforce.com" | sudo tee -a /etc/hosts
+sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder   # macOS
+# undo: edit /etc/hosts and delete that line
+```
+
+Whichever you pick, confirm it worked: the background console logs
+`[gfn-check] feed fetch failed` rather than `catalog fetched: … apps`.
+
 ### Consoles
 
 - **Background** — the one with `browser` in scope, needed for every helper below:
@@ -172,12 +201,13 @@ Note this no longer involves the permission at all. Withholding the feed grant d
 break anything, so the way to produce a stuck banner is to break the *network*:
 
 1. Any mode. `await browser.storage.local.clear()`, then **Reload** the extension.
-2. Go offline (Firefox menu → **More tools** → *Work Offline*).
+2. Break the catalog fetch — see [Making the catalog fetch fail](#making-the-catalog-fetch-fail).
 3. Open <https://store.steampowered.com/app/1091500/>. Banner reads
    **"GeForce NOW: couldn't check"**.
 4. **Wait 4 minutes.** Non-negotiable — the backoff is `2 + 5 + 15 + 45 + 120 s`, exhausted
    at ~3 min 07 s. Waiting past it is what proves the fix rather than the backoff. Set a timer.
-5. Go back online. **Don't touch the page, don't reload, don't switch tabs.**
+5. Restore the network (undo the proxy setting). **Don't touch the page, don't reload,
+   don't switch tabs.**
 6. ✅ The banner is still "couldn't check" — confirming it really had given up.
 7. Click the toolbar icon to open the popup, then dismiss it by clicking on the page.
 8. ✅ The banner resolves within a couple of seconds, no reload.
@@ -188,16 +218,16 @@ was broken. Before this release, the banner stayed stuck indefinitely.
 ### A.3 · A failed refresh says so, and keeps the catalog line
 
 1. Permission granted, catalog cached, popup shows `Catalog: N Steam games · updated …`.
-2. Go offline (Firefox menu → **More tools** → *Work Offline*, or drop your network).
+2. Break the catalog fetch — see [Making the catalog fetch fail](#making-the-catalog-fetch-fail).
 3. Popup → **Refresh catalog**.
 4. ✅ Reads `Catalog: N Steam games · updated … · refresh failed`. The count and age **survive** —
    that catalog is still what badges are answered from, so replacing it with a bare error
    would be throwing away the useful half.
 5. ✅ It does **not** report success.
-6. Now `await browser.storage.local.clear()`, reload the extension, still offline, press
+6. Now `await browser.storage.local.clear()`, reload the extension, still broken, press
    Refresh again. ✅ Reads **"Refresh failed — no catalog cached yet."** — a different
    message, because it's a different bug report.
-7. Back online, press Refresh. ✅ Recovers to a normal catalog line.
+7. Restore the network, press Refresh. ✅ Recovers to a normal catalog line.
 
 ### A.4 · The same, via a tab switch (visibilitychange path)
 
