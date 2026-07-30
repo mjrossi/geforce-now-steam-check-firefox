@@ -2,6 +2,7 @@ import { parseAppId } from "../feed/parse-app-id";
 import { isDefinitive, resolveState, stateStamp, type BadgeState } from "../feed/resolve-state";
 import { lookup } from "../shared/lookup";
 import { debounce } from "../shared/debounce";
+import { coalesce } from "../shared/coalesce";
 import { onEpochChange } from "../shared/catalog-epoch";
 import {
   STATE_ATTR,
@@ -41,7 +42,6 @@ const appId = parseAppId(location.href);
 
 let state: BadgeState | null = null;
 let attempt = 0;
-let inFlight = false;
 
 /** Render the badge, or replace one that is showing a stale state.
  *
@@ -66,10 +66,13 @@ function paint(next: BadgeState): void {
   placeBefore(document, PURCHASE_SELECTOR, badge);
 }
 
-async function run(): Promise<void> {
-  if (appId === null || inFlight) return;
+// Coalesced: a retry timer and a catalog epoch can both fire while a lookup is
+// outstanding. Re-entering would duplicate it; dropping would discard an epoch —
+// the one trigger that must not be lost, since a new catalog is exactly what
+// invalidates the answer on screen.
+const run = coalesce(async () => {
+  if (appId === null) return;
 
-  inFlight = true;
   let next: BadgeState;
   try {
     next = resolveState(appId, await lookup([appId]));
@@ -77,8 +80,6 @@ async function run(): Promise<void> {
     // lookup() is contracted never to reject; degrade rather than let a rejection
     // escape a timer callback.
     next = { kind: "unknown" };
-  } finally {
-    inFlight = false;
   }
 
   state = next;
@@ -90,7 +91,7 @@ async function run(): Promise<void> {
   if (delay === undefined) return; // Out of retries: it stays "couldn't check" until reload.
   attempt += 1;
   setTimeout(() => void run(), delay);
-}
+});
 
 if (appId !== null) {
   void run();

@@ -1,6 +1,7 @@
 import { resolveState, stateStamp } from "../feed/resolve-state";
 import { lookup } from "../shared/lookup";
 import { debounce } from "../shared/debounce";
+import { coalesce } from "../shared/coalesce";
 import { onEpochChange } from "../shared/catalog-epoch";
 import { ensureStyles, renderWishlistPill } from "../badge/badge";
 import { findRows, paint } from "./wishlist-rows";
@@ -9,7 +10,11 @@ import { log } from "../shared/log";
 
 const memo = createStateMemo();
 
-async function run(): Promise<void> {
+// Scrolling, our own pill injection, and a new catalog all trigger a run, and a
+// run is only as fast as the background's answer. Coalesced so a slow lookup
+// isn't re-asked by every mutation batch that lands while it is outstanding —
+// the memo can't dedupe those, since it only records an answer once it arrives.
+const run = coalesce(async () => {
   const rows = findRows(document.body);
   if (rows.size === 0) return;
 
@@ -36,7 +41,7 @@ async function run(): Promise<void> {
     (appId) => renderWishlistPill(document, memo.stateFor(appId)),
     (appId) => stateStamp(memo.stateFor(appId)),
   );
-}
+});
 
 void run();
 
