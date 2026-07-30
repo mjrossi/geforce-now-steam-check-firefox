@@ -34,7 +34,7 @@ of this plan had it backwards:
 
 | Toggle | Source | Default | If revoked |
 |---|---|---|---|
-| `store.steampowered.com` | `content_scripts[].matches` | **on** | Content scripts never inject — **nothing works at all** |
+| `store.steampowered.com` | `content_scripts[].matches` | **on** | Firefox switches to *click-to-run* — badges appear only after clicking the toolbar icon |
 | `games.geforce.com` | `host_permissions` | off | **Nothing.** The catalog fetch clears plain CORS without it |
 
 `games.geforce.com` is insurance against NVIDIA tightening CORS, not a gate. Verified
@@ -43,8 +43,9 @@ against the live endpoint: it answers `access-control-allow-origin: *`, allows t
 a clean install with nothing accepted** — so no test below may assume that withholding this
 grant disables anything.
 
-The `!` toolbar badge tracks `store.steampowered.com`, i.e. "this add-on cannot function".
-It is not a nag about the optional grant.
+The `!` toolbar badge tracks standing `store.steampowered.com` access, i.e. "badges won't
+appear without a click". It is not a nag about the optional grant, and it does not mean the
+add-on is broken.
 
 ### Install modes
 
@@ -220,13 +221,20 @@ actually matters is the one nobody thinks about.
       becoming a permanent "done" marker.
 
 **The grant that does matter.** In `about:addons` → the extension → **Permissions**, turn
-off `store.steampowered.com`:
+off `store.steampowered.com`. Firefox drops to click-to-run rather than blocking outright,
+and the copy has to survive that — an earlier version claimed "no badges can appear" and was
+contradicted on screen a second later:
 
 - [ ] ✅ A `!` appears on the toolbar icon.
-- [ ] ✅ The popup's status light goes amber and reads **Disabled for Steam**, pointing at
-      the Add-ons Manager. It must **not** show a green "Enabled".
-- [ ] ✅ Reload a Steam page: no badge at all, as expected — the content scripts aren't injected.
-- [ ] Turn it back on and reload. ✅ Badges return, `!` clears.
+- [ ] Open a game page. ✅ No badge — nothing is injected without a click.
+- [ ] Click the toolbar icon. ✅ The banner appears on the page behind the popup, because
+      clicking is what grants access to that tab.
+- [ ] ✅ The popup reads **Runs when clicked** and explains that the badge just appeared, and
+      how to make it automatic. It must **not** say badges cannot appear, and must **not**
+      show a green "Enabled".
+- [ ] ✅ **Refresh catalog** is still enabled — it's a background fetch and depends on
+      neither grant.
+- [ ] Turn standing access back on and reload. ✅ Badges appear unprompted, `!` clears.
 
 **Onboarding fires once.** To get a genuine first install, **Remove** the temporary add-on
 in `about:debugging` and Load Temporary Add-on again — **Reload** deliberately does not

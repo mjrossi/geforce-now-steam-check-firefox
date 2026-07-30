@@ -1,28 +1,29 @@
-import { hasSteamAccess } from "../shared/permission";
+import { hasStandingSteamAccess } from "../shared/permission";
 import { log } from "../shared/log";
 
 const ONBOARDING_PAGE = "onboarding.html";
 
-/** Badge the toolbar icon when the extension genuinely cannot work.
+/** Badge the toolbar icon when badges won't appear on their own.
  *
- *  That means Steam access, not the feed grant. Revoking `store.steampowered.com`
- *  in about:addons stops the content scripts being injected, so no badge can
- *  appear on any page and nothing in the product functions — worth a "!".
+ *  That means *standing* Steam access. Without it Firefox runs the add-on
+ *  click-to-run, so pages stay bare until the icon is clicked — worth marking,
+ *  since otherwise a game page silently shows nothing. Note this is "not
+ *  automatic", not "broken": clicking the icon does work, and the popup says so.
  *
  *  The feed grant used to drive this and no longer does. It is opt-in but not
  *  required (the catalog fetch clears plain CORS without it — see
  *  feed-origin.ts), so badging the icon for it nagged users indefinitely about
  *  something that was not affecting them. */
 async function updateActionBadge(): Promise<void> {
-  const usable = await hasSteamAccess();
-  await browser.action.setBadgeText({ text: usable ? "" : "!" });
-  if (!usable) {
+  const automatic = await hasStandingSteamAccess();
+  await browser.action.setBadgeText({ text: automatic ? "" : "!" });
+  if (!automatic) {
     await browser.action.setBadgeBackgroundColor({ color: "#b8860b" });
   }
 }
 
 /** Wire the background side of the permission flow:
- *  - badge the toolbar icon when Steam access is missing (nothing can work)
+ *  - badge the toolbar icon when badges won't appear without a click
  *  - on any grant, refresh the badge and warm the feed cache
  *  - open the onboarding tab once on first install
  *  `warmFeed` is injected to avoid a circular import with feed-service. */

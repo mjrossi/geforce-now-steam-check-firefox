@@ -1,4 +1,4 @@
-import { hasFeedPermission, hasSteamAccess, requestFeedPermission } from "../shared/permission";
+import { hasFeedPermission, hasStandingSteamAccess, requestFeedPermission } from "../shared/permission";
 import type { RefreshRequest, StatusRequest, StatusResponse } from "../shared/messages";
 import { asStatus, isRefreshResponse } from "../shared/messages";
 import { formatAge } from "../shared/format-age";
@@ -13,27 +13,32 @@ const refreshBtn = document.getElementById("refresh") as HTMLButtonElement;
 
 /** Reflect the current permission state into the popup UI.
  *
- *  Two grants, and the status light reports the one that actually gates the
- *  product. `steam` comes from the content scripts' match patterns: granted by
- *  default, but revocable in about:addons, and revoking it stops the scripts being
- *  injected so no badge can appear anywhere. `feed` is the opt-in
- *  games.geforce.com host permission, which is *not* required — the catalog fetch
- *  clears plain CORS without it (feed-origin.ts). Showing a green "Enabled" light
- *  off `feed` alone was backwards on both counts: it nagged users whose extension
- *  worked fine, and it showed all-clear on a browser where nothing could work. */
+ *  Two grants, and the status light reports the one that governs whether badges
+ *  appear on their own. `steam` is *standing* access from the content scripts'
+ *  match patterns: granted by default, and dropped when Firefox's per-site control
+ *  is set to "only when clicked". `feed` is the opt-in games.geforce.com host
+ *  permission, which is not required at all — the catalog fetch clears plain CORS
+ *  without it (feed-origin.ts). Driving the light off `feed` was backwards: it
+ *  nagged users whose add-on worked fine and said nothing about the grant that
+ *  actually changes behaviour.
+ *
+ *  **The `!steam` copy must not claim nothing works.** Opening this popup is the
+ *  very gesture that grants click-to-run access, so by the time it renders, the
+ *  page behind it has usually just been badged. An earlier version said "no badges
+ *  can appear" and was contradicted on screen a second later. */
 function render(steam: boolean, feed: boolean): void {
   dot.className = `dot ${steam ? "dot--on" : "dot--off"}`;
-  statusText.textContent = steam ? "Enabled" : "Disabled for Steam";
+  statusText.textContent = steam ? "Enabled" : "Runs when clicked";
   explain.textContent = !steam
-    ? "This add-on's access to store.steampowered.com has been turned off, so no badges can appear. Re-enable it in Firefox's Add-ons Manager under Permissions."
+    ? "Firefox is set to run this add-on on Steam only when you click its toolbar icon — which is what just happened, so the page behind this popup should have its badge now. For badges without clicking, allow it on store.steampowered.com from the icon's right-click menu, or in the Add-ons Manager under Permissions."
     : feed
       ? "Badges appear on Steam store and wishlist pages. The catalog is read directly from NVIDIA."
       : "Badges appear on Steam store and wishlist pages. Optionally, allow direct access to NVIDIA's catalog — not required today, but it keeps checks working if NVIDIA changes how the catalog may be read.";
-  enableBtn.hidden = feed || !steam;
-  enableBtn.disabled = feed || !steam;
-  // Refreshing is a network fetch; it works with or without the feed grant, but
-  // there is nothing to refresh if the content scripts can't run.
-  refreshBtn.disabled = !steam;
+  enableBtn.hidden = feed;
+  enableBtn.disabled = feed;
+  // Refreshing is a plain network fetch in the background — it has nothing to do
+  // with either grant, and stays available in click-to-run mode.
+  refreshBtn.disabled = false;
 }
 
 /** Describe the cached catalog. This is the line a user reads back to us when
@@ -87,7 +92,7 @@ async function send(req: StatusRequest | RefreshRequest): Promise<unknown> {
 enableBtn.addEventListener("click", async () => {
   const granted = await requestFeedPermission();
   log.info("popup: permission request returned", granted);
-  render(await hasSteamAccess(), granted);
+  render(await hasStandingSteamAccess(), granted);
 });
 
 refreshBtn.addEventListener("click", async () => {
@@ -100,9 +105,9 @@ refreshBtn.addEventListener("click", async () => {
   log.info("popup: refresh returned ok =", result?.ok);
 
   refreshBtn.textContent = "Refresh catalog";
-  // Re-enable per the *current* state: access can be revoked while the popup is
-  // open, and re-enabling into that state only invites a failure.
-  refreshBtn.disabled = !(await hasSteamAccess());
+  // Unconditional: refreshing is a background fetch that depends on neither grant,
+  // so there is no state in which offering it is wrong.
+  refreshBtn.disabled = false;
   // Four distinct outcomes, and collapsing any of them loses a bug report.
   if (result === null) {
     // No usable reply at all — not the same thing as a failed fetch.
@@ -121,7 +126,7 @@ refreshBtn.addEventListener("click", async () => {
 });
 
 void (async () => {
-  const [steam, feed] = await Promise.all([hasSteamAccess(), hasFeedPermission()]);
+  const [steam, feed] = await Promise.all([hasStandingSteamAccess(), hasFeedPermission()]);
   log.info(`popup: opened, steam access = ${String(steam)}, feed grant = ${String(feed)}`);
   render(steam, feed);
 

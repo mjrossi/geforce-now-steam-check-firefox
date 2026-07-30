@@ -10,11 +10,26 @@ export function hasFeedPermission(): Promise<boolean> {
   return browser.permissions.contains({ origins: FEED_ORIGINS });
 }
 
-/** Can the content scripts still run on Steam? Granted by default, but revocable
- *  from `about:addons` — and revoking it silently disables the entire extension,
- *  so the popup reports on it rather than showing a green light for the feed
- *  permission alone. */
-export function hasSteamAccess(): Promise<boolean> {
+/** Does the add-on hold *standing* access to Steam — i.e. will content scripts run
+ *  without the user doing anything?
+ *
+ *  Granted by default. Turning it off in `about:addons`, or picking "Only when
+ *  clicked" from the toolbar icon's context menu, puts Firefox's per-site control
+ *  into click-to-run: the standing grant is dropped and access is handed to the
+ *  active tab only when the user clicks the toolbar icon.
+ *
+ *  **False therefore means "not automatic", not "broken".** Observed directly:
+ *  with the permission revoked, opening a game page paints nothing, and clicking
+ *  the toolbar icon injects the content script and paints the banner. Two
+ *  consequences worth remembering:
+ *  - `permissions.contains` reports only the standing grant, so it is still false
+ *    at the moment the click-granted content script is running happily. There is
+ *    no API that distinguishes "only when clicked" from a hard block, so the UI
+ *    must word this as click-to-run rather than as a failure.
+ *  - Opening the popup to read this value is itself the gesture that grants
+ *    access, so anything rendered from it is describing the state one moment
+ *    before the user's click changed it. Don't tell them nothing can work. */
+export function hasStandingSteamAccess(): Promise<boolean> {
   return browser.permissions.contains({ origins: STEAM_ORIGINS });
 }
 

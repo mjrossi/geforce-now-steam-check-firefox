@@ -24,22 +24,22 @@ coverage — this release is about surviving and supporting a wider install base
   about every visible row on each mutation batch — including batches triggered by our own
   pill injection. Lookups are now memoized per tab and only newly seen games are
   requested; transient states stay retryable, so badges self-heal once the network
-  recovers or the permission is granted.
-- **Store banners recover on their own.** A game page that painted "couldn't check" or
-  "Enable in the toolbar" kept that banner until the tab was reloaded: the page was only
-  looked up once, and the re-injection observer left an existing banner alone. Store
-  banners now carry a state stamp like wishlist pills do, and a non-definitive answer is
-  retried on a backoff — and immediately when you come back to the page, whether from
-  another tab or from the toolbar popup you just granted the permission in. (Those are
-  two different browser events; the popup does not change a tab's visibility, so
-  listening for only the tab switch missed the case the banner's own text sends you to.)
+  recovers.
+- **Store banners recover on their own.** A game page that painted "couldn't check" kept
+  that banner until the tab was reloaded: the page was only looked up once, and the
+  re-injection observer left an existing banner alone. Store banners now carry a state stamp
+  like wishlist pills do, and a non-definitive answer is retried on a backoff — and
+  immediately when you come back to the page, whether from another tab or from the toolbar
+  popup. (Those are two different browser events; opening the popup does not change a tab's
+  visibility, so listening for only the tab switch missed the case where a user goes to the
+  toolbar and comes straight back.)
 - **"Refresh catalog" now fixes the page you pressed it on.** It refetched the catalog
   but nothing told the already-open Steam pages, so a badge you pressed it *because of*
   kept its old answer until you reloaded — and a wrong "Not on GeForce NOW", being a
   definitive answer, was never re-checked at all. The background now publishes a
   catalog-changed signal that every open Steam page picks up: store banners re-check and
-  wishlist rows are all re-asked. The same signal fires after the 12-hour refresh and
-  after you grant the permission, so pages heal in those cases too.
+  wishlist rows are all re-asked. The same signal fires after the 12-hour refresh, so
+  pages heal then too.
 - **The popup can't be stranded by an unrecognized reply.** `runtime.sendMessage`
   *resolves* with `undefined` when a listener declines a message — what an older
   background does mid-update for a message type it has never heard of — and the popup
@@ -66,12 +66,14 @@ coverage — this release is about surviving and supporting a wider install base
   changes how the catalog may be read. Onboarding introduces the add-on instead of demanding
   a step, and the offer disappears once taken rather than sitting there as an unfinished
   task.
-- **The toolbar badge and popup now report the permission that actually matters.** Access to
-  `store.steampowered.com` — which comes from the content scripts, is granted by default,
-  and can be switched off in Firefox's Add-ons Manager — is what the extension genuinely
-  depends on: without it no badge can appear anywhere. It was never surfaced, so an add-on
-  disabled that way showed a green "Enabled" light and no explanation. The `!` badge now
-  tracks that instead of nagging about the optional grant.
+- **The toolbar badge and popup now report the setting that actually changes behaviour.**
+  If you set this add-on's access to Steam to "only when clicked" — in Firefox's Add-ons
+  Manager, or from the toolbar icon's own menu — badges stop appearing on their own and show
+  up only after you click the icon. Nothing surfaced that before, so the popup showed a green
+  "Enabled" light while game pages sat bare. It now reads **Runs when clicked**, explains
+  that clicking the icon is what just badged the page behind it, and says how to make it
+  automatic again. The `!` badge tracks the same thing instead of nagging about the optional
+  catalog grant.
 - **"Couldn't check" no longer blames the permission.** A failed catalog fetch showed
   "click the toolbar icon to enable checks" whenever the optional grant was missing, which
   was usually wrong — the fetch works without it, so the real cause was normally the
