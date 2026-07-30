@@ -44,11 +44,20 @@ any assumption about what a given launch method does.
 
 ### Consoles
 
-- **Background:** `about:debugging#/runtime/this-firefox` → the extension → **Inspect**.
+- **Background:** `about:debugging#/runtime/this-firefox` → the extension → **Inspect**. This
+  opens a separate DevTools window; its console is the one with `browser` in scope. Clicking
+  Inspect also wakes the event page if MV3 has suspended it.
 - **Content scripts:** the Steam page's own DevTools console (F12). Content-script output
   lands here, not in the background console.
 
-Everything is prefixed `[gfn-check]`; filter on it.
+Everything is prefixed `[gfn-check]`; filter on it. §A.1 needs both consoles open at once.
+
+> **`ReferenceError: browser is not defined`** means you're in the wrong console — `browser`
+> exists only in extension contexts, and a content script's isolated world is *not*
+> reachable from the page console. Run `location.href` to see where you are: a background
+> console reports `moz-extension://…/_generated_background_page.html`. A Steam URL means the
+> page console; `chrome://browser/…` means the Browser Console (Ctrl+Shift+J), which doesn't
+> expose `browser` either. Go through `about:debugging` → **Inspect**.
 
 ### Console helpers
 
