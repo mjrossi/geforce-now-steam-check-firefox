@@ -14,23 +14,25 @@ export async function readStatus(getCache: LoadDeps["getCache"]): Promise<Status
 /** Refetch the catalog now, ignoring the TTL — the user-facing recovery path for
  *  a badge that looks wrong.
  *
- *  Success is judged by whether `fetchedAt` advanced, **not** by `LoadResult.ok`:
- *  when a fetch fails but a cache exists, `loadIndex` deliberately reports `ok`
- *  and serves the stale index (that is the "never a false not-supported"
- *  invariant). Correct for a lookup, wrong for a refresh button — the user would
- *  be told the refresh worked while the timestamp sat still.
+ *  Success is `LoadResult.refetched`, **not** `LoadResult.ok`: when a fetch fails
+ *  but a cache exists, `loadIndex` deliberately reports `ok` and serves the stale
+ *  index (that is the "never a false not-supported" invariant). Correct for a
+ *  lookup, wrong for a refresh button — the user would be told the refresh worked
+ *  while the cache sat untouched.
  *
- *  `forceLoad` is injected rather than calling `loadIndex` directly so the
- *  background can route it through its serializing queue; without that, a
- *  concurrent lookup-driven fetch could be the thing that moved `fetchedAt`. */
+ *  This used to compare `fetchedAt` before and after, which was a heuristic with
+ *  a hole in it: the snapshot had to be taken before `forceLoad` could claim its
+ *  place in the background's queue, so a lookup-driven fetch landing in between
+ *  moved the timestamp and a *failed* refresh reported success. `refetched` is
+ *  reported by the load that actually wrote the cache, so no concurrent write can
+ *  be mistaken for this one.
+ *
+ *  `status` is read after the load and returned either way — on failure it still
+ *  describes the stale catalog, which is what the popup should keep showing. */
 export async function refreshCatalog(
   getCache: LoadDeps["getCache"],
   forceLoad: () => Promise<LoadResult>,
 ): Promise<RefreshResponse> {
-  const before = await readStatus(getCache);
-  await forceLoad();
-  const status = await readStatus(getCache);
-
-  const refetched = status !== null && (before === null || status.fetchedAt > before.fetchedAt);
-  return { ok: refetched, status };
+  const result = await forceLoad();
+  return { ok: result.refetched, status: await readStatus(getCache) };
 }

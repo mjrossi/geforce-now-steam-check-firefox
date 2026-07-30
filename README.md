@@ -85,7 +85,8 @@ environment variables are involved.
 ## Debugging
 
 To refetch the catalog, use **Refresh catalog** in the toolbar popup — it also shows how
-many games are indexed and how long ago they were fetched.
+many games are indexed and how long ago they were fetched. Any Steam pages you have open
+re-check themselves when it lands, so there is no need to reload them.
 
 For per-lookup detail, set this flag from the extension's background console
 (`about:debugging` → Inspect); it takes effect immediately, no reload needed:

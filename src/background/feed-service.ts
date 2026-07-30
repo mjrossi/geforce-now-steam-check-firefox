@@ -10,6 +10,7 @@ import { type FeedCache, type LoadDeps } from "../feed/feed-cache";
 import { createLoadCoordinator } from "../feed/load-coordinator";
 import { readStatus, refreshCatalog } from "../feed/refresh";
 import { hasFeedPermission } from "../shared/permission";
+import { EPOCH_KEY } from "../shared/catalog-epoch";
 import { initPermissionGate } from "./permission-gate";
 import { log } from "../shared/log";
 
@@ -92,7 +93,11 @@ const deps: LoadDeps = {
   },
   async setCache(cache) {
     cacheMemo = cache;
-    await browser.storage.local.set({ [CACHE_KEY]: cache });
+    // One write, two keys: the cache itself, and the epoch that tells open Steam
+    // pages to re-ask. Doing it here rather than at the call sites means every
+    // path that lands a new catalog — TTL expiry, the popup's Refresh, the
+    // warm-on-permission-grant — heals open pages for free.
+    await browser.storage.local.set({ [CACHE_KEY]: cache, [EPOCH_KEY]: cache.fetchedAt });
   },
   async fetchFeed() {
     const apps: GfnApp[] = [];
@@ -157,10 +162,19 @@ async function handleRefresh(): Promise<RefreshResponse> {
 }
 
 /** Refresh the feed cache out of band (e.g. right after the user grants the host
- *  permission) so the next lookup is served from a warm cache. */
+ *  permission) so the next lookup is served from a warm cache.
+ *
+ *  Swallows its own failure: this is called as `void warmFeed()` from the
+ *  permission gate, and `load()` does reject if `storage.local.get` itself fails
+ *  (that read sits outside `loadIndex`'s try). Nothing is waiting on the result,
+ *  so an unhandled rejection in the background console is all it could produce. */
 async function warmFeed(): Promise<void> {
-  const result = await catalog.load();
-  log.info(result.ok ? "feed cache warmed" : "feed warm failed (still unavailable)");
+  try {
+    const result = await catalog.load();
+    log.info(result.ok ? "feed cache warmed" : "feed warm failed (still unavailable)");
+  } catch (err) {
+    log.warn("feed warm threw —", err);
+  }
 }
 
 // Returning a promise answers the sender; returning undefined declines the

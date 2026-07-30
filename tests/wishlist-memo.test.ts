@@ -67,6 +67,21 @@ describe("createStateMemo", () => {
     expect(memo.pending([570])).toEqual([]);
   });
 
+  it("forgets everything when a new catalog arrives", () => {
+    // The memo's premise is that a definitive answer stays true. That holds
+    // against a fixed catalog and stops holding the moment one is refetched —
+    // which is exactly what the popup's "Refresh catalog" button does.
+    const memo = createStateMemo();
+    memo.remember(570, SUPPORTED);
+    memo.remember(730, NOT_SUPPORTED);
+    expect(memo.pending([570, 730])).toEqual([]);
+
+    memo.forgetAll();
+
+    expect(memo.pending([570, 730])).toEqual([570, 730]);
+    expect(memo.stateFor(730)).toEqual(UNKNOWN);
+  });
+
   it("keeps memos independent per instance", () => {
     // One memo per tab; nothing may leak between them.
     const a = createStateMemo();

@@ -30,3 +30,15 @@ export function resolveState(appId: number, response: LookupResponse): BadgeStat
 export function isDefinitive(state: BadgeState): boolean {
   return state.kind === "supported" || state.kind === "not-supported";
 }
+
+/** Identity of a *rendered* badge, stamped onto injected nodes so both content
+ *  scripts can tell "already showing this" from "showing something stale".
+ *
+ *  `kind` alone was enough while a definitive answer was never re-checked. It
+ *  isn't now that a new catalog can re-answer a page: "supported" → "supported"
+ *  with a different RTX flag or deep-link id renders differently, and a kind-only
+ *  stamp would leave the old banner sitting there. */
+export function stateStamp(state: BadgeState): string {
+  if (state.kind !== "supported") return state.kind;
+  return `supported:${state.rtx ? "rtx" : "std"}:${state.gfnId ?? ""}:${String(state.cmsId ?? "")}`;
+}

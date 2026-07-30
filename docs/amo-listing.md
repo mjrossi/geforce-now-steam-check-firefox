@@ -10,8 +10,8 @@ locale-less form redirects to the visitor's locale — prefer it when linking).
 the **existing** add-on (Developer Hub → Manage My Submissions → Upload a New Version),
 **not** "Submit a New Add-on" — that errors with "Duplicate add-on ID".
 
-**Distribution:** listed channel ("On this site"). The **"experimental"** flag was
-unchecked as of 1.0.0 — leave it unchecked.
+**Distribution:** listed channel ("On this site"). Uncheck the **"experimental"** flag
+when 1.0.0 goes up — that is what the release is for — and leave it unchecked after.
 
 ---
 
@@ -80,11 +80,14 @@ The full developer changelog lives in `CHANGELOG.md`.
 1.0.0 (first stable release — the experimental flag comes off with this version):
 
 ```
-First stable release.
+First stable release. This one is about badges being right and staying right, rather than new pages.
 
 - Fixed badges sometimes not appearing at all right after Firefox starts or the add-on updates. They now show "couldn't check" instead of nothing.
-- The toolbar popup now shows how many games are in the catalog and when it was last updated, with a "Refresh catalog" button if a badge ever looks out of date.
+- The toolbar popup shows how many games are in the catalog and when it was last updated, with a "Refresh catalog" button for when a badge looks out of date.
+- "Refresh catalog" now updates the Steam pages you already have open, instead of only taking effect after a reload.
+- A badge that couldn't be checked — or that asked you to enable the add-on from the toolbar — now fixes itself once it can be, without a reload.
 - Wishlist badges keep up better when scrolling long lists.
+- Several open Steam tabs no longer each download their own copy of the catalog.
 
 Thanks to everyone who tried the beta and filed reports.
 ```
@@ -112,7 +115,7 @@ Captions:
 GeForce NOW check for Steam does not collect, store, or transmit any personal data. There are no analytics, no tracking, and no accounts.
 
 - Network requests: The extension makes a single kind of outbound request — it fetches NVIDIA's public GeForce NOW game catalog from games.geforce.com. No information about you, your browsing, or your Steam account is sent; the request asks only for the public list of supported games.
-- Local storage: The fetched catalog is cached in your browser for up to 12 hours so it isn't refetched on every page. This cache never leaves your device and contains only NVIDIA's public catalog data.
+- Local storage: The fetched catalog is cached in your browser for up to 12 hours so it isn't refetched on every page, alongside the time of the last fetch (used to tell open Steam pages that a newer catalog is available). This never leaves your device and contains only NVIDIA's public catalog data and that timestamp.
 - Page access: Content scripts run only on store.steampowered.com store and wishlist pages, where they read the Steam app IDs already on the page to look them up and draw a badge. Nothing else is read or transmitted.
 
 The extension declares no data collection in its manifest. Questions: https://github.com/mjrossi/geforce-now-steam-check-firefox/issues

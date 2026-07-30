@@ -58,19 +58,19 @@ async function send(req: StatusRequest | RefreshRequest): Promise<unknown> {
   }
 }
 
-/** Reload the active tab if it's a Steam page, so badges repaint immediately. */
-async function reloadActiveSteamTab(): Promise<void> {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id !== undefined && tab.url?.startsWith("https://store.steampowered.com/")) {
-    await browser.tabs.reload(tab.id);
-  }
-}
+// Note there is deliberately no "reload the Steam tab" path here. It was tried and
+// silently did nothing: the manifest carries neither `tabs` nor a steampowered.com
+// host permission, so `tabs.query` returns a tab with no `url` and there is no way
+// to tell whether reloading would hit a Steam page or whatever else the user is on.
+// Open pages heal themselves instead — the background publishes a catalog epoch to
+// storage.local on every write and both content scripts watch for it
+// (shared/catalog-epoch.ts), which reaches *every* open Steam page, not just the
+// active one. Granting the permission warms the feed, so that path is covered too.
 
 enableBtn.addEventListener("click", async () => {
   const granted = await requestFeedPermission();
   log.info("popup: permission request returned", granted);
   render(granted);
-  if (granted) await reloadActiveSteamTab();
 });
 
 refreshBtn.addEventListener("click", async () => {
@@ -86,13 +86,20 @@ refreshBtn.addEventListener("click", async () => {
   // Re-enable per the *current* grant state: the permission can be revoked while
   // the popup is open, and re-enabling into that state only invites a failure.
   refreshBtn.disabled = !(await hasFeedPermission());
-  if (result?.ok) {
+  // Four distinct outcomes, and collapsing any of them loses a bug report.
+  if (result === null) {
+    // No usable reply at all — not the same thing as a failed fetch.
+    renderCatalog(undefined);
+  } else if (result.ok) {
+    // Open Steam pages pick the new catalog up on their own, via the epoch.
     renderCatalog(result.status);
-    // A page showing "couldn't check" (or a since-corrected answer) only picks
-    // the new catalog up on reload.
-    await reloadActiveSteamTab();
+  } else if (result.status === null) {
+    catalogStatus.textContent = "Refresh failed — no catalog cached yet.";
   } else {
-    catalogStatus.textContent = "Refresh failed — check your connection.";
+    // The fetch failed but the previous catalog is still there and still worth
+    // showing; refreshCatalog returns the stale status on purpose.
+    renderCatalog(result.status);
+    catalogStatus.textContent += " · refresh failed";
   }
 });
 

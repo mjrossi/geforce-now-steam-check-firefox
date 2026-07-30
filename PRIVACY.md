@@ -12,8 +12,10 @@ data. There are no analytics, no tracking, and no accounts.
   requests — they ask only for the public list of supported games.
 
 - **Local storage.** The fetched catalog is cached locally in your browser
-  (`browser.storage.local`) for up to 12 hours to avoid refetching on every page.
-  This cache never leaves your device and contains only NVIDIA's public catalog data.
+  (`browser.storage.local`) for up to 12 hours to avoid refetching on every page,
+  alongside the time of the last fetch — which is how open Steam pages learn that a
+  newer catalog is available and re-check themselves. This never leaves your device and
+  contains only NVIDIA's public catalog data and that timestamp.
 
 - **Page access.** Content scripts run only on `store.steampowered.com` app and
   wishlist pages. They read the Steam app IDs already present on the page in order to

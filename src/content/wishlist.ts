@@ -1,6 +1,7 @@
-import { resolveState } from "../feed/resolve-state";
+import { resolveState, stateStamp } from "../feed/resolve-state";
 import { lookup } from "../shared/lookup";
 import { debounce } from "../shared/debounce";
+import { onEpochChange } from "../shared/catalog-epoch";
 import { ensureStyles, renderWishlistPill } from "../badge/badge";
 import { findRows, paint } from "./wishlist-rows";
 import { createStateMemo } from "./wishlist-memo";
@@ -33,7 +34,7 @@ async function run(): Promise<void> {
     document,
     rows,
     (appId) => renderWishlistPill(document, memo.stateFor(appId)),
-    (appId) => memo.stateFor(appId).kind,
+    (appId) => stateStamp(memo.stateFor(appId)),
   );
 }
 
@@ -44,4 +45,13 @@ void run();
 new MutationObserver(debounce(() => void run(), 300)).observe(document.body, {
   childList: true,
   subtree: true,
+});
+
+// A new catalog invalidates the memo wholesale — every pill it is holding was
+// answered against the old one. Dropping it makes the next run re-ask about every
+// visible row, which is what the popup's "Refresh catalog" button is for.
+onEpochChange(() => {
+  log.info("wishlist: new catalog published, re-checking visible rows");
+  memo.forgetAll();
+  void run();
 });

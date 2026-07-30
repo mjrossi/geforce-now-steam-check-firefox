@@ -9,6 +9,10 @@ export interface StateMemo {
   remember: (appId: number, state: BadgeState) => void;
   /** Best known state for a row — "unknown" ("couldn't check") until resolved. */
   stateFor: (appId: number) => BadgeState;
+  /** Forget every answer. For when a *new catalog* arrives: the memo's whole
+   *  premise is that a definitive answer stays true, which holds against a fixed
+   *  catalog and stops holding the moment one is refetched. */
+  forgetAll: () => void;
 }
 
 /** Per-tab memo of app ids we already have a *definitive* answer for.
@@ -30,5 +34,6 @@ export function createStateMemo(): StateMemo {
       if (isDefinitive(state)) resolved.set(appId, state);
     },
     stateFor: (appId) => resolved.get(appId) ?? UNKNOWN,
+    forgetAll: () => resolved.clear(),
   };
 }

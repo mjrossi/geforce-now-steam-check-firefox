@@ -35,7 +35,7 @@ describe("loadIndex", () => {
     };
     const fetchFeed = vi.fn();
     const result = await loadIndex(deps({ getCache: async () => cache, fetchFeed, now: () => 1_000_000 }));
-    expect(result).toEqual({ ok: true, index: { "620": { rtx: true } } });
+    expect(result).toEqual({ ok: true, index: { "620": { rtx: true } }, refetched: false });
     expect(fetchFeed).not.toHaveBeenCalled();
   });
 
@@ -45,6 +45,7 @@ describe("loadIndex", () => {
     expect(result).toEqual({
       ok: true,
       index: { "620": { rtx: true, gfnId: "1", cmsId: 100620 } },
+      refetched: true,
     });
     expect(setCache).toHaveBeenCalledWith({
       fetchedAt: 1_000_000,
@@ -61,6 +62,7 @@ describe("loadIndex", () => {
     expect(result).toEqual({
       ok: true,
       index: { "620": { rtx: true, gfnId: "1", cmsId: 100620 } },
+      refetched: true,
     });
   });
 
@@ -75,6 +77,7 @@ describe("loadIndex", () => {
     expect(result).toEqual({
       ok: true,
       index: { "620": { rtx: true, gfnId: "1", cmsId: 100620 } },
+      refetched: true,
     });
   });
 
@@ -90,6 +93,7 @@ describe("loadIndex", () => {
     expect(result).toEqual({
       ok: true,
       index: { "620": { rtx: true, gfnId: "1", cmsId: 100620 } },
+      refetched: true,
     });
   });
 
@@ -99,7 +103,7 @@ describe("loadIndex", () => {
       fetchFeed: async () => { throw new Error("network"); },
       now: () => 1_000_000,
     }));
-    expect(result).toEqual({ ok: true, index: { "1": { rtx: false } } });
+    expect(result).toEqual({ ok: true, index: { "1": { rtx: false } }, refetched: false });
   });
 
   test("fetch fails with stale cache present → serve stale, ok:true", async () => {
@@ -108,7 +112,7 @@ describe("loadIndex", () => {
       getCache: async () => stale,
       fetchFeed: async () => { throw new Error("network"); },
     }));
-    expect(result).toEqual({ ok: true, index: { "1": { rtx: false } } });
+    expect(result).toEqual({ ok: true, index: { "1": { rtx: false } }, refetched: false });
   });
 
   test("fetch fails with no cache → ok:false", async () => {
@@ -116,6 +120,19 @@ describe("loadIndex", () => {
       getCache: async () => null,
       fetchFeed: async () => { throw new Error("network"); },
     }));
-    expect(result).toEqual({ ok: false, index: null });
+    expect(result).toEqual({ ok: false, index: null, refetched: false });
+  });
+
+  test("a failed cache *write* is not a refetch", async () => {
+    // The refresh button asks "did anything change?", and nothing did: the fetch
+    // came back but the write (quota, storage error) didn't land, so the next
+    // load will have to fetch all over again. Reporting success here would tell
+    // the user their refresh worked when the cache is untouched.
+    const stale: FeedCache = { fetchedAt: 0, version: CACHE_VERSION, index: { "1": { rtx: false } } };
+    const result = await loadIndex(deps({
+      getCache: async () => stale,
+      setCache: async () => { throw new Error("QuotaExceededError"); },
+    }));
+    expect(result).toEqual({ ok: true, index: { "1": { rtx: false } }, refetched: false });
   });
 });

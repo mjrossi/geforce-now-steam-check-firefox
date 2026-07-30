@@ -18,11 +18,13 @@ export interface LoadCoordinator {
  *  Two mechanisms, each doing a distinct job:
  *  - *Sharing* collapses a burst of concurrent lookups onto one fetch, so they
  *    also share its failure instead of retrying it N times while offline.
- *  - *Serializing* keeps a forced refresh from interleaving with a lookup-driven
- *    fetch. Without it, `refreshCatalog`'s before/after comparison could observe
- *    the other fetch's write and report success or failure for the wrong
- *    operation. It also means a load queued behind a successful one finds the
- *    cache already fresh and returns without fetching at all. */
+ *  - *Serializing* keeps a forced refresh from running a second full paginated
+ *    fetch alongside a lookup-driven one. It also means a load queued behind a
+ *    successful one finds the cache already fresh and returns without fetching at
+ *    all. (This used to carry a second job — making `refreshCatalog`'s
+ *    before/after `fetchedAt` comparison trustworthy — which it never fully did.
+ *    That comparison is gone; `LoadResult.refetched` reports on the load that
+ *    wrote the cache, so correctness no longer rests on the ordering here.) */
 export function createLoadCoordinator(deps: LoadDeps): LoadCoordinator {
   // Tail of the serialization chain. Never rejects: `loadIndex` resolves even on
   // fetch failure, and the guard keeps a hostile injected dep from stalling it.

@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-## [1.0.0] — 2026-07-28
+## [1.0.0] — 2026-07-30
 
 First stable release: the AMO listing drops its **experimental** flag. No new page
 coverage — this release is about surviving and supporting a wider install base.
@@ -29,8 +29,17 @@ coverage — this release is about surviving and supporting a wider install base
   "Enable in the toolbar" kept that banner until the tab was reloaded: the page was only
   looked up once, and the re-injection observer left an existing banner alone. Store
   banners now carry a state stamp like wishlist pills do, and a non-definitive answer is
-  retried on a backoff — and immediately when the tab is brought back to the foreground,
-  which is exactly when a user returns from granting the permission in the popup.
+  retried on a backoff — and immediately when you come back to the page, whether from
+  another tab or from the toolbar popup you just granted the permission in. (Those are
+  two different browser events; the popup does not change a tab's visibility, so
+  listening for only the tab switch missed the case the banner's own text sends you to.)
+- **"Refresh catalog" now fixes the page you pressed it on.** It refetched the catalog
+  but nothing told the already-open Steam pages, so a badge you pressed it *because of*
+  kept its old answer until you reloaded — and a wrong "Not on GeForce NOW", being a
+  definitive answer, was never re-checked at all. The background now publishes a
+  catalog-changed signal that every open Steam page picks up: store banners re-check and
+  wishlist rows are all re-asked. The same signal fires after the 12-hour refresh and
+  after you grant the permission, so pages heal in those cases too.
 - **The popup can't be stranded by an unrecognized reply.** `runtime.sendMessage`
   *resolves* with `undefined` when a listener declines a message — what an older
   background does mid-update for a message type it has never heard of — and the popup
@@ -42,11 +51,18 @@ coverage — this release is about surviving and supporting a wider install base
   independently drove a full paginated catalog fetch. Loads are now shared and
   serialized: a burst collapses onto a single fetch (sharing its failure too, rather
   than retrying it once per tab while offline), and a manual refresh can no longer
-  interleave with a lookup-driven one.
+  run a second full fetch alongside a lookup-driven one.
+- **A failed refresh is reported as failed.** Whether the refresh worked was inferred
+  from the cache timestamp moving, which a *different* concurrent fetch could do just as
+  well — so a refresh that failed could report success. The load that writes the cache
+  now says so directly. A failed refresh also keeps showing the previous catalog's size
+  and age instead of replacing it with an error, since that catalog is still what your
+  badges are being answered from.
 - Internal: `resolveBannerLinks` splits store-banner link resolution out of DOM building,
   making the stale-cache degradation matrix directly testable. The refresh success rule,
-  the load coordinator, and the wishlist memo likewise moved into pure modules
-  (`feed/refresh.ts`, `feed/load-coordinator.ts`, `content/wishlist-memo.ts`) with tests.
+  the load coordinator, the wishlist memo, and the store page's retry state machine
+  likewise moved into pure modules (`feed/refresh.ts`, `feed/load-coordinator.ts`,
+  `content/wishlist-memo.ts`, `content/store-controller.ts`) with tests. 85 → 140 tests.
 
 ## [0.4.0] — 2026-07-04
 
