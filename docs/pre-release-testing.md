@@ -223,7 +223,12 @@ break anything, so the way to produce a stuck banner is to break the *network*:
    reload, don't switch tabs.**
 6. ✅ The banner is still "couldn't check" — confirming it really had given up.
 7. Click the toolbar icon to open the popup, then dismiss it by clicking on the page.
-8. ✅ The banner resolves within a couple of seconds, no reload.
+   **Click nothing inside the popup.** If the feed grant is missing it will offer *Allow
+   direct catalog access*, and taking it fires `warmFeed()` → a successful fetch → an epoch
+   broadcast, so the banner would heal by the *epoch* path and the test would pass without
+   exercising the focus retry at all.
+8. ✅ The banner resolves within a couple of seconds, no reload. The background log shows a
+   fresh `fetching GeForce NOW catalog…` as the popup closes.
 
 Step 7 fires `window` `focus` but **not** `visibilitychange`, which is exactly the path that
 was broken. Before this release, the banner stayed stuck indefinitely.
