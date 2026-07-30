@@ -88,7 +88,7 @@ First stable release. This one is about badges being right and staying right, ra
 - Fixed badges sometimes not appearing at all right after Firefox starts or the add-on updates. They now show "couldn't check" instead of nothing.
 - The toolbar popup shows how many games are in the catalog and when it was last updated, with a "Refresh catalog" button for when a badge looks out of date.
 - "Refresh catalog" now updates the Steam pages you already have open, instead of only taking effect after a reload.
-- A badge that couldn't be checked — or that asked you to enable the add-on from the toolbar — now fixes itself once it can be, without a reload.
+- A badge that couldn't be checked now fixes itself once it can be, without a reload.
 - Wishlist badges keep up better when scrolling long lists.
 - Several open Steam tabs no longer each download their own copy of the catalog.
 - Badges now work the moment you install — the catalog permission the welcome page used to insist on turns out not to be needed, and is offered as an optional safeguard instead.
