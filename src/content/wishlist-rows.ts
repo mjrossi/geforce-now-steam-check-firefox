@@ -18,6 +18,12 @@ export const APP_ID_ATTR = "data-gfn-app-id";
 const LEGACY_ROW_SELECTOR = ".wishlist_row";
 const MAX_CLIMB = 8;
 
+// The two nodes that name a game on a wishlist page. Both are live-Steam-DOM
+// dependent and are the first thing to re-verify with `just dev` if rows stop
+// being found — named here so there is one copy to check, not five.
+const APP_LINK = 'a[href*="/app/"]';
+const CAPSULE = 'img[src*="/apps/"]';
+
 // Stable Steam-wide chrome that also contains `/app/` links (global nav, footer,
 // responsive menu). Seeds inside these must never be treated as wishlist rows,
 // or we'd badge unrelated games in the header/footer.
@@ -27,16 +33,21 @@ function inChrome(el: Element): boolean {
   return CHROME_SELECTORS.some((sel) => el.closest(sel) !== null);
 }
 
+/** The Steam app id a node names: an `/app/` link's href, or an `/apps/` capsule
+ *  image's src. One rule, used both to scan a subtree and to seed a row — they
+ *  have to agree, and stating it twice was an invitation for them not to. */
+function appIdOf(el: Element): number | null {
+  return (
+    parseAppId(el.getAttribute("href") ?? "") ?? parseAppIdFromImage(el.getAttribute("src") ?? "")
+  );
+}
+
 /** All Steam app ids referenced by a subtree, via `/app/` anchors and `/apps/`
  *  capsule images. Used to find the bounding row container for one game. */
 export function appIdsIn(el: Element): Set<number> {
   const ids = new Set<number>();
-  for (const a of el.querySelectorAll<HTMLAnchorElement>('a[href*="/app/"]')) {
-    const id = parseAppId(a.getAttribute("href") ?? "");
-    if (id !== null) ids.add(id);
-  }
-  for (const img of el.querySelectorAll<HTMLImageElement>('img[src*="/apps/"]')) {
-    const id = parseAppIdFromImage(img.getAttribute("src") ?? "");
+  for (const node of el.querySelectorAll(`${APP_LINK}, ${CAPSULE}`)) {
+    const id = appIdOf(node);
     if (id !== null) ids.add(id);
   }
   return ids;
@@ -74,16 +85,16 @@ export function findRows(root: Element): Map<number, HTMLElement> {
   }
 
   // Modern layout: seed from every app link and capsule image (outside chrome),
-  // dedupe per id, and climb each seed to its single-game block.
+  // dedupe per id, and climb each seed to its single-game block. Links first,
+  // then images — not document order: the first seed for an id decides that
+  // game's row, and a link is the more reliable starting point.
   const seeds: HTMLElement[] = [
-    ...root.querySelectorAll<HTMLElement>('a[href*="/app/"]'),
-    ...root.querySelectorAll<HTMLElement>('img[src*="/apps/"]'),
+    ...root.querySelectorAll<HTMLElement>(APP_LINK),
+    ...root.querySelectorAll<HTMLElement>(CAPSULE),
   ];
   for (const seed of seeds) {
     if (inChrome(seed)) continue;
-    const id =
-      parseAppId(seed.getAttribute("href") ?? "") ??
-      parseAppIdFromImage(seed.getAttribute("src") ?? "");
+    const id = appIdOf(seed);
     if (id === null || rows.has(id)) continue;
     rows.set(id, rowContainer(seed, id, root));
   }
@@ -128,7 +139,7 @@ export function paint(
     // (under the rank/handle column). The capsule's own container becomes the
     // positioning context. Fall back to appending to the row when a row has no
     // capsule image. (Live-DOM dependent — re-verify with `just dev`.)
-    const capsule = row.querySelector<HTMLImageElement>('img[src*="/apps/"]');
+    const capsule = row.querySelector<HTMLImageElement>(CAPSULE);
     const host = capsule?.parentElement;
     if (host) {
       host.classList.add(ANCHOR_CLASS);
