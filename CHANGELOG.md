@@ -71,9 +71,13 @@ coverage — this release is about surviving and supporting a wider install base
   Manager, or from the toolbar icon's own menu — badges stop appearing on their own and show
   up only after you click the icon. Nothing surfaced that before, so the popup showed a green
   "Enabled" light while game pages sat bare. It now reads **Runs when clicked**, explains
-  that clicking the icon is what just badged the page behind it, and says how to make it
-  automatic again. The `!` badge tracks the same thing instead of nagging about the optional
-  catalog grant.
+  that clicking the icon is what just badged the page behind it, and offers an **Always run
+  on Steam pages** button that raises Firefox's own permission prompt — one click, rather
+  than directions to a settings page. The `!` badge tracks the same thing instead of nagging
+  about the optional catalog grant.
+- **Now requires Firefox 128 or later** (was 120). That is what `optional_host_permissions`
+  needs, and it's also the release where the per-site "only when clicked" control arrived —
+  so the one-click fix exists on every version that can get into the state it fixes.
 - **"Couldn't check" no longer blames the permission.** A failed catalog fetch showed
   "click the toolbar icon to enable checks" whenever the optional grant was missing, which
   was usually wrong — the fetch works without it, so the real cause was normally the

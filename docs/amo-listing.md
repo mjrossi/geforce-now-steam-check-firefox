@@ -27,6 +27,9 @@ when 1.0.0 goes up — that is what the release is for — and leave it unchecke
 - **Privacy policy:** include it (text below) — optional since data collection is "none",
   but reassuring at no cost.
 - **EULA:** none. Unnecessary for a free, MIT-licensed extension; skip it.
+- **Minimum Firefox:** 128 (set via `strict_min_version`). Required by
+  `optional_host_permissions`, which backs the popup's one-click "always run on Steam"
+  button; 128 is also where the per-site "only when clicked" control shipped.
 - **Applications:** Firefox (desktop) only. Leave **Firefox for Android** unchecked — the
   content scripts target desktop Steam markup and are untested on mobile.
 
@@ -89,7 +92,7 @@ First stable release. This one is about badges being right and staying right, ra
 - Wishlist badges keep up better when scrolling long lists.
 - Several open Steam tabs no longer each download their own copy of the catalog.
 - Badges now work the moment you install — the catalog permission the welcome page used to insist on turns out not to be needed, and is offered as an optional safeguard instead.
-- If you ever switch off this add-on's access to Steam in Firefox's Add-ons Manager, the toolbar icon and popup now tell you that's why badges disappeared.
+- If this add-on is set to run on Steam only when clicked, the toolbar icon and popup now say so — and offer a button to switch it to automatic, instead of leaving you to find the setting.
 
 Thanks to everyone who tried the beta and filed reports.
 ```
@@ -154,6 +157,10 @@ store.steampowered.com app and wishlist pages.
 PERMISSIONS / DATA
 - "storage": caches NVIDIA's GeForce NOW catalog locally (~12h TTL), plus the
   timestamp of the last fetch.
+- optional_host_permissions for the two store.steampowered.com content-script
+  patterns: declared only so the toolbar popup can call permissions.request() to
+  restore standing access when the user has set the add-on to "only when clicked".
+  It requests nothing beyond what the content scripts already match.
 - content scripts on https://store.steampowered.com/app/* and /wishlist/*: reads
   the Steam app IDs already present on the page in order to draw a badge.
 - host_permissions for https://games.geforce.com/*: declared because that is the

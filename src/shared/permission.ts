@@ -40,3 +40,23 @@ export function hasStandingSteamAccess(): Promise<boolean> {
 export function requestFeedPermission(): Promise<boolean> {
   return browser.permissions.request({ origins: FEED_ORIGINS });
 }
+
+/** Prompt the user to restore *standing* Steam access, i.e. to leave click-to-run
+ *  mode so badges appear without clicking the toolbar icon.
+ *
+ *  Same user-gesture rule as above. `STEAM_ORIGINS` is declared in the manifest's
+ *  `optional_host_permissions` purely so this call is legal — `permissions.request`
+ *  only accepts origins the manifest marks requestable, and a `content_scripts`
+ *  match pattern alone does not. Without it the only remedy we could offer was a
+ *  paragraph of instructions for Firefox's own menus.
+ *
+ *  Resolves false rather than throwing if Firefox refuses the request outright, so
+ *  the caller can fall back to those instructions instead of dying on a rejected
+ *  promise. */
+export async function requestSteamAccess(): Promise<boolean> {
+  try {
+    return await browser.permissions.request({ origins: STEAM_ORIGINS });
+  } catch {
+    return false;
+  }
+}

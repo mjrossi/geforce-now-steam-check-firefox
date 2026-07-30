@@ -16,7 +16,7 @@ function render(steam: boolean, feed: boolean): void {
   dot.className = `dot ${steam ? "dot--on" : "dot--off"}`;
   statusText.textContent = steam
     ? "Ready — open a Steam game page to see GeForce NOW badges."
-    : "Firefox is set to run this add-on on Steam only when you click its toolbar icon. Badges still work, but you'll click the icon on each page — allow it on store.steampowered.com to have them appear on their own.";
+    : "Set to run only when you click the toolbar icon. Badges still work; you'll just click the icon on each page. The popup can switch this to automatic.";
   optional.hidden = feed;
   enableBtn.hidden = feed;
 }

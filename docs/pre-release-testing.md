@@ -37,6 +37,9 @@ of this plan had it backwards:
 | `store.steampowered.com` | `content_scripts[].matches` | **on** | Firefox switches to *click-to-run* — badges appear only after clicking the toolbar icon |
 | `games.geforce.com` | `host_permissions` | off | **Nothing.** The catalog fetch clears plain CORS without it |
 
+Requires **Firefox 128+** (`strict_min_version`): `optional_host_permissions`, which makes
+the popup's one-click fix possible, doesn't exist below it.
+
 `games.geforce.com` is insurance against NVIDIA tightening CORS, not a gate. Verified
 against the live endpoint: it answers `access-control-allow-origin: *`, allows the
 `content-type` header, and the add-on fetches with `credentials: "omit"`. **Badges work on
@@ -229,12 +232,19 @@ contradicted on screen a second later:
 - [ ] Open a game page. ✅ No badge — nothing is injected without a click.
 - [ ] Click the toolbar icon. ✅ The banner appears on the page behind the popup, because
       clicking is what grants access to that tab.
-- [ ] ✅ The popup reads **Runs when clicked** and explains that the badge just appeared, and
-      how to make it automatic. It must **not** say badges cannot appear, and must **not**
-      show a green "Enabled".
+- [ ] ✅ The popup reads **Runs when clicked** and says the badge just appeared. It must
+      **not** say badges cannot appear, and must **not** show a green "Enabled".
 - [ ] ✅ **Refresh catalog** is still enabled — it's a background fetch and depends on
       neither grant.
-- [ ] Turn standing access back on and reload. ✅ Badges appear unprompted, `!` clears.
+- [ ] ✅ An **Always run on Steam pages** button is offered, and **Allow direct catalog
+      access** is not — one call to action at a time.
+- [ ] Click it. ✅ Firefox's own permission prompt appears (not a page of instructions).
+      Accept: the light goes green, `!` clears, and the copy says to reload open Steam pages
+      — those tabs have no content script in them at all, so no self-healing path can reach
+      them.
+- [ ] Repeat, and **decline** Firefox's prompt this time. ✅ Only now does the popup mention
+      the Add-ons Manager as a manual route.
+- [ ] Open a *new* Steam page. ✅ Badge appears unprompted.
 
 **Onboarding fires once.** To get a genuine first install, **Remove** the temporary add-on
 in `about:debugging` and Load Temporary Add-on again — **Reload** deliberately does not

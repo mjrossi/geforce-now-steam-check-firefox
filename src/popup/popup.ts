@@ -1,4 +1,9 @@
-import { hasFeedPermission, hasStandingSteamAccess, requestFeedPermission } from "../shared/permission";
+import {
+  hasFeedPermission,
+  hasStandingSteamAccess,
+  requestFeedPermission,
+  requestSteamAccess,
+} from "../shared/permission";
 import type { RefreshRequest, StatusRequest, StatusResponse } from "../shared/messages";
 import { asStatus, isRefreshResponse } from "../shared/messages";
 import { formatAge } from "../shared/format-age";
@@ -10,6 +15,7 @@ const explain = document.getElementById("explain")!;
 const enableBtn = document.getElementById("enable") as HTMLButtonElement;
 const catalogStatus = document.getElementById("catalog-status")!;
 const refreshBtn = document.getElementById("refresh") as HTMLButtonElement;
+const allowSteamBtn = document.getElementById("allow-steam") as HTMLButtonElement;
 
 /** Reflect the current permission state into the popup UI.
  *
@@ -30,12 +36,16 @@ function render(steam: boolean, feed: boolean): void {
   dot.className = `dot ${steam ? "dot--on" : "dot--off"}`;
   statusText.textContent = steam ? "Enabled" : "Runs when clicked";
   explain.textContent = !steam
-    ? "Firefox is set to run this add-on on Steam only when you click its toolbar icon — which is what just happened, so the page behind this popup should have its badge now. For badges without clicking, allow it on store.steampowered.com from the icon's right-click menu, or in the Add-ons Manager under Permissions."
+    ? "Badges appear only after you click this icon — which is why the page behind this popup has one now."
     : feed
       ? "Badges appear on Steam store and wishlist pages. The catalog is read directly from NVIDIA."
       : "Badges appear on Steam store and wishlist pages. Optionally, allow direct access to NVIDIA's catalog — not required today, but it keeps checks working if NVIDIA changes how the catalog may be read.";
-  enableBtn.hidden = feed;
-  enableBtn.disabled = feed;
+
+  // One call to action at a time, and click-to-run is the one that changes what
+  // the user sees. The optional catalog grant waits its turn.
+  allowSteamBtn.hidden = steam;
+  enableBtn.hidden = !steam || feed;
+
   // Refreshing is a plain network fetch in the background — it has nothing to do
   // with either grant, and stays available in click-to-run mode.
   refreshBtn.disabled = false;
@@ -88,6 +98,23 @@ async function send(req: StatusRequest | RefreshRequest): Promise<unknown> {
 // storage.local on every write and both content scripts watch for it
 // (shared/catalog-epoch.ts), which reaches *every* open Steam page, not just the
 // active one.
+
+allowSteamBtn.addEventListener("click", async () => {
+  const granted = await requestSteamAccess();
+  log.info("popup: steam access request returned", granted);
+  if (!granted) {
+    // Either declined, or Firefox refused the request outright. Only now is the
+    // manual route worth spelling out — offering it up front, as this popup used
+    // to, buried a one-click fix under a paragraph about context menus.
+    explain.textContent =
+      "Still click-to-run. You can also allow it from the Add-ons Manager, under this add-on's Permissions.";
+    return;
+  }
+  render(true, await hasFeedPermission());
+  // Tabs opened before the grant have no content script in them at all, so unlike
+  // every other healing path in the extension this one can't reach them.
+  explain.textContent = "Done — badges now appear on their own. Reload any Steam pages you already have open.";
+});
 
 enableBtn.addEventListener("click", async () => {
   const granted = await requestFeedPermission();
