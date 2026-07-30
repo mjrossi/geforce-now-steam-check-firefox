@@ -4,8 +4,9 @@ import {
   requestFeedPermission,
   requestSteamAccess,
 } from "../shared/permission";
-import type { RefreshRequest, StatusRequest, StatusResponse } from "../shared/messages";
+import type { StatusResponse } from "../shared/messages";
 import { asStatus, isRefreshResponse } from "../shared/messages";
+import { sendToBackground } from "../shared/send";
 import { formatAge } from "../shared/format-age";
 import { log } from "../shared/log";
 
@@ -45,10 +46,6 @@ function render(steam: boolean, feed: boolean): void {
   // the user sees. The optional catalog grant waits its turn.
   allowSteamBtn.hidden = steam;
   enableBtn.hidden = !steam || feed;
-
-  // Refreshing is a plain network fetch in the background — it has nothing to do
-  // with either grant, and stays available in click-to-run mode.
-  refreshBtn.disabled = false;
 }
 
 /** Describe the cached catalog. This is the line a user reads back to us when
@@ -70,23 +67,6 @@ function renderCatalog(status: StatusResponse | undefined): void {
   // in the background log and reads like one of the two is wrong.
   const games = status.count.toLocaleString();
   catalogStatus.textContent = `Catalog: ${games} Steam games · updated ${formatAge(Date.now() - status.fetchedAt)}`;
-}
-
-/** Send a message to the background, or `undefined` if it can't be reached.
- *
- *  Same event-page startup window the content scripts guard against (see
- *  shared/lookup.ts), and the same rule: an unhandled throw would strand the
- *  popup on its placeholder text. `sendMessage` also *resolves* with `undefined`
- *  when a listener declines the message — which is what an older background does
- *  mid-update for a message type it has never heard of — so callers validate the
- *  reply rather than casting it. */
-async function send(req: StatusRequest | RefreshRequest): Promise<unknown> {
-  try {
-    return await browser.runtime.sendMessage(req);
-  } catch (err) {
-    log.warn("popup: background unreachable —", err);
-    return undefined;
-  }
 }
 
 // Note there is deliberately no "reload the Steam tab" path here. It was tried and
@@ -127,14 +107,12 @@ refreshBtn.addEventListener("click", async () => {
   refreshBtn.textContent = "Refreshing…";
   catalogStatus.textContent = "Fetching the GeForce NOW catalog…";
 
-  const reply = await send({ type: "gfn-refresh" });
+  const reply = await sendToBackground({ type: "gfn-refresh" });
   const result = isRefreshResponse(reply) ? reply : null;
   log.info("popup: refresh returned ok =", result?.ok);
 
   refreshBtn.textContent = "Refresh catalog";
-  // Unconditional: refreshing is a background fetch that depends on neither grant,
-  // so there is no state in which offering it is wrong.
-  refreshBtn.disabled = false;
+  refreshBtn.disabled = false; // Unconditional — a failed refresh is worth retrying.
   // Four distinct outcomes, and collapsing any of them loses a bug report.
   if (result === null) {
     // No usable reply at all — not the same thing as a failed fetch.
@@ -153,9 +131,16 @@ refreshBtn.addEventListener("click", async () => {
 });
 
 void (async () => {
-  const [steam, feed] = await Promise.all([hasStandingSteamAccess(), hasFeedPermission()]);
+  // All three in flight together: the catalog status depends on neither grant, and
+  // it is the slow one — it may have to wake the MV3 event page — so waiting for
+  // the two `permissions.contains` round trips first only lengthens how long the
+  // popup sits on "Checking catalog…".
+  const [steam, feed, status] = await Promise.all([
+    hasStandingSteamAccess(),
+    hasFeedPermission(),
+    sendToBackground({ type: "gfn-status" }),
+  ]);
   log.info(`popup: opened, steam access = ${String(steam)}, feed grant = ${String(feed)}`);
   render(steam, feed);
-
-  renderCatalog(asStatus(await send({ type: "gfn-status" })));
+  renderCatalog(asStatus(status));
 })();

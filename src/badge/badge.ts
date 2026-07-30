@@ -5,6 +5,14 @@ import { resolveBannerLinks } from "./gfn-link";
 const STYLE_ID = "gfn-check-style";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+/** Records *which badge* an injected node is showing, as `stateStamp()` from
+ *  resolve-state.ts. Both content scripts stamp it and compare against it to tell
+ *  "already showing this" from "showing something stale" — a slot painted
+ *  "couldn't check" while its lookup was pending, or a definitive answer a new
+ *  catalog has since changed. One attribute name, one contract: it lives here
+ *  because this module owns everything we inject into the page. */
+export const STATE_ATTR = "data-gfn-state";
+
 /** GFN mark, mirrors icons/icon.svg. Built via DOM (not innerHTML) so it needs
  *  no asset/host perms and stays clear of unsafe-assignment lint. */
 function logoSvg(doc: Document): SVGElement {

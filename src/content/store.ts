@@ -3,11 +3,16 @@ import { isDefinitive, resolveState, stateStamp, type BadgeState } from "../feed
 import { lookup } from "../shared/lookup";
 import { debounce } from "../shared/debounce";
 import { onEpochChange } from "../shared/catalog-epoch";
-import { ensureStyles, placeAfter, placeBefore, renderStoreBanner } from "../badge/badge";
+import {
+  STATE_ATTR,
+  ensureStyles,
+  placeAfter,
+  placeBefore,
+  renderStoreBanner,
+} from "../badge/badge";
 import { log } from "../shared/log";
 
 const SLOT_ID = "gfn-check-store-slot";
-const STATE_ATTR = "data-gfn-state";
 // The banner sits right under the game title/header. We try the header anchors
 // first (placed after them) and fall back to just above the purchase block.
 // These are the selectors to re-verify against the live store page if placement

@@ -1,13 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, test } from "vitest";
-import {
-  APP_ID_ATTR,
-  PILL_SLOT,
-  STATE_ATTR,
-  findRows,
-  paint,
-  rowContainer,
-} from "../src/content/wishlist-rows";
+import { APP_ID_ATTR, PILL_SLOT, findRows, paint, rowContainer } from "../src/content/wishlist-rows";
+import { STATE_ATTR } from "../src/badge/badge";
 
 beforeEach(() => {
   document.body.innerHTML = "";
@@ -99,11 +93,13 @@ describe("paint — idempotency & recycled rows", () => {
     el.textContent = `pill-${id}`;
     return el;
   };
+  // These cases vary the app id, not the badge, so every row is stamped the same.
+  const settled = () => "supported";
 
   test("overlays the pill on the capsule when the row has one", () => {
     document.body.innerHTML = `<div class="card"><a href="${link(10)}"><img src="${cap(10)}"></a></div>`;
     const row = document.querySelector<HTMLElement>(".card")!;
-    paint(document, new Map([[10, row]]), pill);
+    paint(document, new Map([[10, row]]), pill, settled);
     const slot = row.querySelector<HTMLElement>(`.${PILL_SLOT}`)!;
     expect(slot.classList.contains(`${PILL_SLOT}--overlay`)).toBe(true);
     // the capsule's container becomes the positioning context and holds the slot
@@ -115,7 +111,7 @@ describe("paint — idempotency & recycled rows", () => {
   test("falls back to appending to the row when there is no capsule", () => {
     document.body.innerHTML = `<div class="card"><a href="${link(10)}">A</a></div>`;
     const row = document.querySelector<HTMLElement>(".card")!;
-    paint(document, new Map([[10, row]]), pill);
+    paint(document, new Map([[10, row]]), pill, settled);
     const slot = row.querySelector<HTMLElement>(`.${PILL_SLOT}`)!;
     expect(slot.classList.contains(`${PILL_SLOT}--overlay`)).toBe(false);
     expect(slot.parentElement).toBe(row);
@@ -125,8 +121,8 @@ describe("paint — idempotency & recycled rows", () => {
     document.body.innerHTML = `<div class="card"><a href="${link(10)}">A</a></div>`;
     const row = document.querySelector<HTMLElement>(".card")!;
     const rows = new Map([[10, row]]);
-    paint(document, rows, pill);
-    paint(document, rows, pill);
+    paint(document, rows, pill, settled);
+    paint(document, rows, pill, settled);
     expect(row.querySelectorAll(`.${PILL_SLOT}`)).toHaveLength(1);
     expect(row.querySelector(`.${PILL_SLOT}`)!.getAttribute(APP_ID_ATTR)).toBe("10");
   });
@@ -134,9 +130,9 @@ describe("paint — idempotency & recycled rows", () => {
   test("re-badges a recycled container when the app id changes", () => {
     document.body.innerHTML = `<div class="card"><a href="${link(10)}">A</a></div>`;
     const row = document.querySelector<HTMLElement>(".card")!;
-    paint(document, new Map([[10, row]]), pill);
+    paint(document, new Map([[10, row]]), pill, settled);
     // Same container, now showing a different game (virtualized recycle).
-    paint(document, new Map([[20, row]]), pill);
+    paint(document, new Map([[20, row]]), pill, settled);
     const slots = row.querySelectorAll(`.${PILL_SLOT}`);
     expect(slots).toHaveLength(1);
     expect(slots[0]!.getAttribute(APP_ID_ATTR)).toBe("20");

@@ -1,3 +1,5 @@
+import { onLocalKeyChange } from "./storage";
+
 /** Broadcast channel for "the catalog changed", from the background to whatever
  *  Steam pages happen to be open.
  *
@@ -20,9 +22,6 @@ export const EPOCH_KEY = "gfn-catalog-epoch";
 
 /** Run `handler` whenever a new catalog is published.
  *
- *  The key filter is what keeps unrelated `storage.local` writes — the `gfn-debug`
- *  flag, most obviously — from triggering a re-check.
- *
  *  Watching the cache key directly would work just as well; a separate key exists
  *  so content scripts depend on "a new catalog landed" rather than on the
  *  background's storage layout. Note it buys no bandwidth: the epoch is written in
@@ -30,7 +29,8 @@ export const EPOCH_KEY = "gfn-catalog-epoch";
  *  event either way. That is the cost of this channel, paid twice a day plus once
  *  per manual refresh. */
 export function onEpochChange(handler: () => void): void {
-  browser.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && EPOCH_KEY in changes) handler();
+  // The value is ignored — a change event is the whole signal.
+  onLocalKeyChange(EPOCH_KEY, () => {
+    handler();
   });
 }

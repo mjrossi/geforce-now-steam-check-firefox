@@ -11,6 +11,7 @@ import { createLoadCoordinator } from "../feed/load-coordinator";
 import { readStatus, refreshCatalog } from "../feed/refresh";
 import { hasFeedPermission } from "../shared/permission";
 import { EPOCH_KEY } from "../shared/catalog-epoch";
+import { onLocalKeyChange } from "../shared/storage";
 import { initPermissionGate } from "./permission-gate";
 import { log } from "../shared/log";
 
@@ -71,11 +72,9 @@ let debugEnabled = false;
 void browser.storage.local.get(DEBUG_KEY).then((stored) => {
   debugEnabled = stored[DEBUG_KEY] === true;
 });
-browser.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && DEBUG_KEY in changes) {
-    debugEnabled = changes[DEBUG_KEY]?.newValue === true;
-    log.info(`debug logging ${debugEnabled ? "enabled" : "disabled"}`);
-  }
+onLocalKeyChange(DEBUG_KEY, (value) => {
+  debugEnabled = value === true;
+  log.info(`debug logging ${debugEnabled ? "enabled" : "disabled"}`);
 });
 
 // In-memory copy of the stored cache. Wishlist scrolling sends a lookup per
@@ -160,12 +159,12 @@ async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
 }
 
 function handleStatus(): Promise<StatusResponse> {
-  return readStatus(() => deps.getCache());
+  return readStatus(deps.getCache);
 }
 
 async function handleRefresh(): Promise<RefreshResponse> {
   log.info("manual catalog refresh requested");
-  const result = await refreshCatalog(() => deps.getCache(), catalog.forceLoad);
+  const result = await refreshCatalog(deps.getCache, catalog.forceLoad);
   log.info(result.ok ? "manual refresh succeeded" : "manual refresh failed (cache unchanged)");
   return result;
 }
@@ -204,9 +203,10 @@ browser.runtime.onMessage.addListener((message: unknown): Promise<unknown> | und
   }
 });
 
-// Firefox MV3: host permissions are opt-in and NOT granted on a normal install,
-// so the catalog fetch is blocked until the user enables it via the popup /
-// onboarding tab. This wires the toolbar badge, the cache warm-on-grant, and the
-// first-install onboarding tab.
+// Wires the toolbar badge (driven by *standing Steam access*, i.e. whether badges
+// appear without a click), the cache warm-on-grant, and the first-install
+// onboarding tab. Note the feed host permission, though opt-in and ungranted on a
+// normal install, blocks nothing: the catalog fetch clears plain CORS without it
+// (feed-origin.ts).
 initPermissionGate(warmFeed);
 log.info("background ready");
