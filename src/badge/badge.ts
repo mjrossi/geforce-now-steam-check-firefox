@@ -70,10 +70,28 @@ function pillLabel(state: BadgeState): string {
   return "Couldn't check";
 }
 
-function dot(doc: Document): HTMLElement {
-  const d = doc.createElement("span");
-  d.className = "gfn-check-dot";
-  return d;
+/** createElement + class + optional text — the shape every piece of badge
+ *  chrome takes. Built this way, never from innerHTML, so `web-ext lint` stays
+ *  clean and we need no asset or host permissions. */
+function span(doc: Document, className: string, text?: string): HTMLElement {
+  const el = doc.createElement("span");
+  el.className = className;
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+/** The muted "web ↗" chip: the escape hatch for a supported game when the
+ *  native app route is also on offer but the app may not be installed. Its own
+ *  link, a sibling of the main one — nesting anchors is invalid. */
+function webChip(doc: Document, webUrl: string): HTMLAnchorElement {
+  const web = doc.createElement("a");
+  web.className = "gfn-check-web";
+  web.href = webUrl;
+  web.target = "_blank";
+  web.rel = "noopener noreferrer";
+  web.textContent = "web ↗";
+  web.title = "Open in the browser instead of the GeForce NOW app";
+  return web;
 }
 
 /** Prominent full-width banner for a store page, placed near the title.
@@ -115,48 +133,27 @@ export function renderStoreBanner(doc: Document, state: BadgeState): HTMLElement
     main = a;
   }
 
-  const logo = doc.createElement("span");
-  logo.className = "gfn-check-banner-logo";
+  const logo = span(doc, "gfn-check-banner-logo");
   logo.appendChild(logoSvg(doc));
   main.appendChild(logo);
-
-  const text = doc.createElement("span");
-  text.className = "gfn-check-banner-text";
-  text.textContent = bannerLabel(state);
-  main.appendChild(text);
+  main.appendChild(span(doc, "gfn-check-banner-text", bannerLabel(state)));
 
   if (state.kind === "supported" && state.rtx) {
-    const rtx = doc.createElement("span");
-    rtx.className = "gfn-check-rtx";
-    rtx.textContent = "RTX";
-    main.appendChild(rtx);
+    main.appendChild(span(doc, "gfn-check-rtx", "RTX"));
   }
-
   if (mainUrl !== null) {
-    const play = doc.createElement("span");
-    play.className = "gfn-check-play";
-    play.textContent = appUrl !== null ? "Play" : "Play ↗";
-    main.appendChild(play);
+    main.appendChild(span(doc, "gfn-check-play", appUrl !== null ? "Play" : "Play ↗"));
   }
-
   if (appUrl !== null && webUrl !== null) {
-    const web = doc.createElement("a");
-    web.className = "gfn-check-web";
-    web.href = webUrl;
-    web.target = "_blank";
-    web.rel = "noopener noreferrer";
-    web.textContent = "web ↗";
-    web.title = "Open in the browser instead of the GeForce NOW app";
-    el.appendChild(web);
+    el.appendChild(webChip(doc, webUrl));
   }
   return el;
 }
 
 /** Compact pill for a wishlist row. */
 export function renderWishlistPill(doc: Document, state: BadgeState): HTMLElement {
-  const el = doc.createElement("span");
-  el.className = `gfn-check-pill gfn-check-pill--${modifier(state)}`;
-  el.appendChild(dot(doc));
+  const el = span(doc, `gfn-check-pill gfn-check-pill--${modifier(state)}`);
+  el.appendChild(span(doc, "gfn-check-dot"));
   const label = doc.createElement("span");
   label.textContent = pillLabel(state);
   el.appendChild(label);
