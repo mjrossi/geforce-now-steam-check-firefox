@@ -134,15 +134,13 @@ async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
     log.warn(`feed fetch failed; ${req.appIds.length} id(s) -> unknown (grant missing: ${String(reason === "permission")})`);
     return { ok: false, found: {}, reason };
   }
+  if (debugEnabled) log.info(`index size=${Object.keys(result.index).length}`);
   const found: Record<string, GfnIndexEntry> = {};
   for (const appId of req.appIds) {
-    const hit = result.index[String(appId)];
-    if (hit) found[String(appId)] = hit;
-  }
-  if (debugEnabled) {
-    log.info(`index size=${Object.keys(result.index).length}`);
-    for (const appId of req.appIds) {
-      const hit = result.index[String(appId)];
+    const key = String(appId);
+    const hit = result.index[key];
+    if (hit) found[key] = hit;
+    if (debugEnabled) {
       log.info(`appId ${appId}: ${hit ? `supported (rtx=${hit.rtx})` : "NOT in index"}`);
     }
   }
