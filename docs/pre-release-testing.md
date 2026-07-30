@@ -27,20 +27,37 @@ What follows is only the part a test can't reach.
 
 ## Setup
 
-### The two install modes, and why it matters
+### The two permissions
 
-`just dev` (`web-ext run`) **auto-grants the `games.geforce.com` host permission**. A real
-install does not — that opt-in is the single most load-bearing thing in the extension, and
-the mode that hides it is the mode you'll naturally develop in.
+Keep these straight — they are opposites of what the names suggest, and an earlier version
+of this plan had it backwards:
 
-| Mode | How | Host permission | Use for |
+| Toggle | Source | Default | If revoked |
 |---|---|---|---|
-| **Dev** | `just dev` | auto-granted | §B markup checks, §A.1 catalog healing |
-| **Real** | `just build`, then `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → pick `dist/manifest.json` | opt-in, as shipped | §A.2/§A.3 permission flows, §C upgrade |
+| `store.steampowered.com` | `content_scripts[].matches` | **on** | Content scripts never inject — **nothing works at all** |
+| `games.geforce.com` | `host_permissions` | off | **Nothing.** The catalog fetch clears plain CORS without it |
 
-**Tell them apart by the toolbar icon, not by which command you ran:** a `!` badge on the
-icon means the permission is *not* granted. That check is self-verifying — trust it over
-any assumption about what a given launch method does.
+`games.geforce.com` is insurance against NVIDIA tightening CORS, not a gate. Verified
+against the live endpoint: it answers `access-control-allow-origin: *`, allows the
+`content-type` header, and the add-on fetches with `credentials: "omit"`. **Badges work on
+a clean install with nothing accepted** — so no test below may assume that withholding this
+grant disables anything.
+
+The `!` toolbar badge tracks `store.steampowered.com`, i.e. "this add-on cannot function".
+It is not a nag about the optional grant.
+
+### Install modes
+
+`just dev` (`web-ext run`) auto-grants `games.geforce.com`; a real install leaves it for the
+user. Since that grant no longer gates behaviour, the distinction now only matters for §A.2
+and §D, which exercise the grant UI itself.
+
+- **Dev:** `just dev` — fine for §A.1, §B, §C.
+- **Real:** `just build`, then `about:debugging#/runtime/this-firefox` → *Load Temporary
+  Add-on* → pick `dist/manifest.json`. Use for §A.2 and §D.
+
+To check which grant state you're actually in, open the popup: the **Allow direct catalog
+access** button is present only while the optional grant is missing.
 
 ### Consoles
 
@@ -141,35 +158,35 @@ flips but that line is absent, something else fixed it and the channel is not wo
 **"Not available"**. Hit Refresh; ✅ pills flip to **"GeForce NOW"** without a reload, and the
 console shows `wishlist: new catalog published, re-checking visible rows`.
 
-### A.2 · A permission granted from the popup un-sticks the banner
+### A.2 · A page that gave up retrying revives when you come back (focus path)
 
-The bug: `visibilitychange` was relied on to catch this and never fires for it — opening a
-browser-action popup leaves the tab `visible`. Once the ~3-minute backoff expired, the
-banner was stuck until reload.
+The bug: `visibilitychange` was relied on to catch the user returning from the toolbar
+popup, and never fires for it — opening a browser-action popup leaves the tab `visible`.
+Once the ~3-minute backoff expired, a non-definitive banner was stuck until reload.
 
-Set up the isolated case — cache already fresh, so the grant produces **no** new catalog
-write and therefore **no** epoch. The focus retry is then the only thing that can heal it:
+Note this no longer involves the permission at all. Withholding the feed grant doesn't
+break anything, so the way to produce a stuck banner is to break the *network*:
 
-1. **Real mode.** Grant the permission and let the catalog load.
-2. Revoke it: `about:addons` → the extension → **Permissions** → turn off
-   `games.geforce.com`. ✅ The `!` badge returns to the toolbar icon.
+1. Any mode. `await browser.storage.local.clear()`, then **Reload** the extension.
+2. Go offline (Firefox menu → **More tools** → *Work Offline*).
 3. Open <https://store.steampowered.com/app/1091500/>. Banner reads
-   **"GeForce NOW: click the toolbar icon to enable checks"**.
-4. **Wait 4 minutes.** Non-negotiable — the backoff is `2 + 5 + 15 + 45 + 120 s`, so it's
-   exhausted at ~3 min 07 s, and waiting past it is what proves the fix rather than the
-   backoff. Set a timer.
-5. Click the toolbar icon → **Enable GeForce NOW checks** → accept Firefox's prompt.
-6. Dismiss the popup by clicking on the page.
-7. ✅ The banner becomes **"Playable on GeForce NOW"** within a couple of seconds, no reload.
+   **"GeForce NOW: couldn't check"**.
+4. **Wait 4 minutes.** Non-negotiable — the backoff is `2 + 5 + 15 + 45 + 120 s`, exhausted
+   at ~3 min 07 s. Waiting past it is what proves the fix rather than the backoff. Set a timer.
+5. Go back online. **Don't touch the page, don't reload, don't switch tabs.**
+6. ✅ The banner is still "couldn't check" — confirming it really had given up.
+7. Click the toolbar icon to open the popup, then dismiss it by clicking on the page.
+8. ✅ The banner resolves within a couple of seconds, no reload.
 
-Before this release, step 7 stayed stuck indefinitely.
+Step 7 fires `window` `focus` but **not** `visibilitychange`, which is exactly the path that
+was broken. Before this release, the banner stayed stuck indefinitely.
 
 ### A.3 · A failed refresh says so, and keeps the catalog line
 
-1. Permission granted, catalog cached, popup shows `Catalog: N games · updated …`.
+1. Permission granted, catalog cached, popup shows `Catalog: N Steam games · updated …`.
 2. Go offline (Firefox menu → **More tools** → *Work Offline*, or drop your network).
 3. Popup → **Refresh catalog**.
-4. ✅ Reads `Catalog: N games · updated … · refresh failed`. The count and age **survive** —
+4. ✅ Reads `Catalog: N Steam games · updated … · refresh failed`. The count and age **survive** —
    that catalog is still what badges are answered from, so replacing it with a bare error
    would be throwing away the useful half.
 5. ✅ It does **not** report success.
@@ -178,19 +195,47 @@ Before this release, step 7 stayed stuck indefinitely.
    message, because it's a different bug report.
 7. Back online, press Refresh. ✅ Recovers to a normal catalog line.
 
-### A.4 · The onboarding-tab grant path (the `visibilitychange` half)
+### A.4 · The same, via a tab switch (visibilitychange path)
 
-1. **Real mode**, storage cleared, permission not granted.
+Identical setup to §A.2, but return to the page a different way — this covers the event the
+popup path can't reach.
 
-   To get a genuine first install, **Remove** the temporary add-on in `about:debugging` and
-   Load Temporary Add-on again — **Reload** deliberately does not re-fire it. The gate is
-   `details.reason === "install" && !hasFeedPermission()`, so a reload reports `"update"` and
-   correctly skips onboarding, and `just dev`'s auto-grant skips it too. The background logs
-   `[gfn-check] onInstalled: <reason>` unconditionally; check that before calling it a bug.
-2. Open a store page in tab A → "click the toolbar icon to enable checks".
-3. Grant the permission from the onboarding tab (or the popup) **in a different tab**, so
-   returning to tab A is a genuine tab switch.
-4. Switch back to tab A. ✅ Banner resolves without a reload.
+1. Repeat §A.2 steps 1–6, so the banner is stuck at "couldn't check" and you're back online.
+2. Switch to another tab, then switch back.
+3. ✅ The banner resolves without a reload.
+
+### A.5 · The permission model is honest
+
+New this release, and the reason to check it: the feed grant is optional, and the grant that
+actually matters is the one nobody thinks about.
+
+**The optional grant is genuinely optional.** On a **Real mode** install with
+`games.geforce.com` never accepted:
+
+- [ ] ✅ Badges work anyway — the catalog fetches under plain CORS.
+- [ ] ✅ The toolbar icon carries **no** `!`. It is not a nag about this grant.
+- [ ] ✅ The popup reads **Enabled**, and offers **Allow direct catalog access** as optional.
+- [ ] ✅ Onboarding says the add-on is ready, with the grant framed as optional insurance.
+- [ ] Accept the grant. ✅ The button and the optional paragraph disappear rather than
+      becoming a permanent "done" marker.
+
+**The grant that does matter.** In `about:addons` → the extension → **Permissions**, turn
+off `store.steampowered.com`:
+
+- [ ] ✅ A `!` appears on the toolbar icon.
+- [ ] ✅ The popup's status light goes amber and reads **Disabled for Steam**, pointing at
+      the Add-ons Manager. It must **not** show a green "Enabled".
+- [ ] ✅ Reload a Steam page: no badge at all, as expected — the content scripts aren't injected.
+- [ ] Turn it back on and reload. ✅ Badges return, `!` clears.
+
+**Onboarding fires once.** To get a genuine first install, **Remove** the temporary add-on
+in `about:debugging` and Load Temporary Add-on again — **Reload** deliberately does not
+re-fire it, reporting `"update"` instead. The background logs
+`[gfn-check] onInstalled: <reason>` unconditionally, so check that before calling a missing
+onboarding tab a bug.
+
+- [ ] ✅ Onboarding opens on a genuine first install, whether or not the feed grant is held.
+- [ ] ✅ It does not reopen on reload or update.
 
 ---
 
@@ -252,10 +297,10 @@ it any more.
 
 ## §D — Smoke
 
-- [ ] Popup: grant state, game count, and age all render; **Refresh catalog** is disabled
-      while the permission is missing.
-- [ ] Onboarding tab opens on first install, and **only** on first install.
-- [ ] `!` toolbar badge appears when the permission is missing, clears when granted.
+- [ ] Popup: status light, Steam-game count, and age all render.
+- [ ] Popup's catalog count is labelled **Steam games** — it is the indexed subset (~2000),
+      not the raw catalog size the background logs (~2200). Both numbers are correct; see
+      the header comment in `src/feed/index-feed.ts` for the full reconciliation.
 - [ ] Supported banner's **Play** chip opens the GFN app; **web ↗** opens
       play.geforcenow.com.
 - [ ] No unhandled errors in the background console across a full session.

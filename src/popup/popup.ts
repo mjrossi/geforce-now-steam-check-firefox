@@ -1,4 +1,4 @@
-import { hasFeedPermission, requestFeedPermission } from "../shared/permission";
+import { hasFeedPermission, hasSteamAccess, requestFeedPermission } from "../shared/permission";
 import type { RefreshRequest, StatusRequest, StatusResponse } from "../shared/messages";
 import { asStatus, isRefreshResponse } from "../shared/messages";
 import { formatAge } from "../shared/format-age";
@@ -11,17 +11,29 @@ const enableBtn = document.getElementById("enable") as HTMLButtonElement;
 const catalogStatus = document.getElementById("catalog-status")!;
 const refreshBtn = document.getElementById("refresh") as HTMLButtonElement;
 
-/** Reflect the current grant state into the popup UI. */
-function render(granted: boolean): void {
-  dot.className = `dot ${granted ? "dot--on" : "dot--off"}`;
-  statusText.textContent = granted ? "Enabled" : "Not enabled";
-  explain.textContent = granted
-    ? "Badges will appear on Steam store and wishlist pages."
-    : "Firefox needs your permission to read NVIDIA's GeForce NOW catalog before badges can appear on Steam pages.";
-  enableBtn.disabled = granted;
-  enableBtn.textContent = granted ? "Enabled" : "Enable GeForce NOW checks";
-  // Refreshing needs the host permission; without it the fetch can only fail.
-  refreshBtn.disabled = !granted;
+/** Reflect the current permission state into the popup UI.
+ *
+ *  Two grants, and the status light reports the one that actually gates the
+ *  product. `steam` comes from the content scripts' match patterns: granted by
+ *  default, but revocable in about:addons, and revoking it stops the scripts being
+ *  injected so no badge can appear anywhere. `feed` is the opt-in
+ *  games.geforce.com host permission, which is *not* required — the catalog fetch
+ *  clears plain CORS without it (feed-origin.ts). Showing a green "Enabled" light
+ *  off `feed` alone was backwards on both counts: it nagged users whose extension
+ *  worked fine, and it showed all-clear on a browser where nothing could work. */
+function render(steam: boolean, feed: boolean): void {
+  dot.className = `dot ${steam ? "dot--on" : "dot--off"}`;
+  statusText.textContent = steam ? "Enabled" : "Disabled for Steam";
+  explain.textContent = !steam
+    ? "This add-on's access to store.steampowered.com has been turned off, so no badges can appear. Re-enable it in Firefox's Add-ons Manager under Permissions."
+    : feed
+      ? "Badges appear on Steam store and wishlist pages. The catalog is read directly from NVIDIA."
+      : "Badges appear on Steam store and wishlist pages. Optionally, allow direct access to NVIDIA's catalog — not required today, but it keeps checks working if NVIDIA changes how the catalog may be read.";
+  enableBtn.hidden = feed || !steam;
+  enableBtn.disabled = feed || !steam;
+  // Refreshing is a network fetch; it works with or without the feed grant, but
+  // there is nothing to refresh if the content scripts can't run.
+  refreshBtn.disabled = !steam;
 }
 
 /** Describe the cached catalog. This is the line a user reads back to us when
@@ -37,8 +49,12 @@ function renderCatalog(status: StatusResponse | undefined): void {
     catalogStatus.textContent = "Catalog not loaded yet.";
     return;
   }
+  // "Steam games", not "games": this counts the *indexed* entries, which is the
+  // GFN catalog narrowed to titles with a resolvable Steam app id — currently
+  // ~2000 of ~2200. Saying "games" invites a comparison with the raw catalog size
+  // in the background log and reads like one of the two is wrong.
   const games = status.count.toLocaleString();
-  catalogStatus.textContent = `Catalog: ${games} games · updated ${formatAge(Date.now() - status.fetchedAt)}`;
+  catalogStatus.textContent = `Catalog: ${games} Steam games · updated ${formatAge(Date.now() - status.fetchedAt)}`;
 }
 
 /** Send a message to the background, or `undefined` if it can't be reached.
@@ -59,18 +75,19 @@ async function send(req: StatusRequest | RefreshRequest): Promise<unknown> {
 }
 
 // Note there is deliberately no "reload the Steam tab" path here. It was tried and
-// silently did nothing: the manifest carries neither `tabs` nor a steampowered.com
-// host permission, so `tabs.query` returns a tab with no `url` and there is no way
-// to tell whether reloading would hit a Steam page or whatever else the user is on.
+// silently did nothing: the manifest carries no `tabs` permission, and the Steam
+// access that content scripts run under is not a host permission the popup can read
+// a URL through, so `tabs.query` returns a tab with no `url` — leaving no way to
+// tell whether reloading would hit a Steam page or whatever else the user is on.
 // Open pages heal themselves instead — the background publishes a catalog epoch to
 // storage.local on every write and both content scripts watch for it
 // (shared/catalog-epoch.ts), which reaches *every* open Steam page, not just the
-// active one. Granting the permission warms the feed, so that path is covered too.
+// active one.
 
 enableBtn.addEventListener("click", async () => {
   const granted = await requestFeedPermission();
   log.info("popup: permission request returned", granted);
-  render(granted);
+  render(await hasSteamAccess(), granted);
 });
 
 refreshBtn.addEventListener("click", async () => {
@@ -83,9 +100,9 @@ refreshBtn.addEventListener("click", async () => {
   log.info("popup: refresh returned ok =", result?.ok);
 
   refreshBtn.textContent = "Refresh catalog";
-  // Re-enable per the *current* grant state: the permission can be revoked while
-  // the popup is open, and re-enabling into that state only invites a failure.
-  refreshBtn.disabled = !(await hasFeedPermission());
+  // Re-enable per the *current* state: access can be revoked while the popup is
+  // open, and re-enabling into that state only invites a failure.
+  refreshBtn.disabled = !(await hasSteamAccess());
   // Four distinct outcomes, and collapsing any of them loses a bug report.
   if (result === null) {
     // No usable reply at all — not the same thing as a failed fetch.
@@ -104,9 +121,9 @@ refreshBtn.addEventListener("click", async () => {
 });
 
 void (async () => {
-  const granted = await hasFeedPermission();
-  log.info("popup: opened, permission granted =", granted);
-  render(granted);
+  const [steam, feed] = await Promise.all([hasSteamAccess(), hasFeedPermission()]);
+  log.info(`popup: opened, steam access = ${String(steam)}, feed grant = ${String(feed)}`);
+  render(steam, feed);
 
   renderCatalog(asStatus(await send({ type: "gfn-status" })));
 })();

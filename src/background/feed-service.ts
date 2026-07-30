@@ -128,11 +128,20 @@ const catalog = createLoadCoordinator(deps);
 async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
   const result = await catalog.load();
   if (!result.ok) {
-    // No index and no cache. Distinguish the opt-in host permission not being
-    // granted (the common "works in `web-ext run`, blank when installed" case)
-    // from a transient fetch failure, so the badge can guide the user.
+    // No index and no cache — the fetch failed. This used to report "permission"
+    // whenever the feed grant was missing, on the assumption that a missing grant
+    // is what blocks the fetch. It isn't: the catalog answers with an open CORS
+    // policy, so an ungranted extension fetches perfectly well (feed-origin.ts).
+    // The inference was therefore usually backwards — an offline user who had
+    // never granted was told to click the toolbar icon, which would not have
+    // helped them.
+    //
+    // A failed fetch is a failed fetch, so say so. The grant is still worth
+    // offering when it's missing, because it's the one thing that could plausibly
+    // help if NVIDIA ever tightens CORS — but it's offered as a suggestion the
+    // badge copy words as such, not as a diagnosis.
     const reason = (await hasFeedPermission()) ? "network" : "permission";
-    log.warn(`feed unavailable (${reason}); ${req.appIds.length} id(s) -> unknown`);
+    log.warn(`feed fetch failed; ${req.appIds.length} id(s) -> unknown (grant missing: ${String(reason === "permission")})`);
     return { ok: false, found: {}, reason };
   }
   const found: Record<string, GfnIndexEntry> = {};

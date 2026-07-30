@@ -40,18 +40,25 @@ function modifier(state: BadgeState): "ok" | "no" | "unknown" {
   return "unknown";
 }
 
+// Both failure states mean "the catalog fetch didn't work". They differ only in
+// whether the feed grant is missing, which makes granting it worth *suggesting* —
+// it bypasses any CORS problem. It is not worth asserting as the cause: the fetch
+// works fine ungranted (feed-origin.ts), so the usual reason for landing here is
+// simply that the network was down, and the older copy ("click the toolbar icon to
+// enable checks") told those users to do something that would not have helped.
 function bannerLabel(state: BadgeState): string {
   if (state.kind === "supported") return "Playable on GeForce NOW";
   if (state.kind === "not-supported") return "Not on GeForce NOW";
   if (state.kind === "needs-permission")
-    return "GeForce NOW: click the toolbar icon to enable checks";
+    return "GeForce NOW: couldn't check — the toolbar icon may help";
   return "GeForce NOW: couldn't check";
 }
 
 function pillLabel(state: BadgeState): string {
   if (state.kind === "supported") return state.rtx ? "GeForce NOW · RTX" : "GeForce NOW";
   if (state.kind === "not-supported") return "Not available";
-  if (state.kind === "needs-permission") return "Enable in toolbar";
+  // No room in a pill to word a suggestion honestly, and a wishlist row is not
+  // where that conversation belongs — the popup has space to explain.
   return "Couldn't check";
 }
 

@@ -41,12 +41,18 @@ describe("renderStoreBanner", () => {
       "GeForce NOW: couldn't check",
     );
   });
-  test("needs-permission prompts the user to enable from the toolbar", () => {
+  test("needs-permission suggests the toolbar without blaming the permission", () => {
+    // The feed grant is optional — the catalog fetch clears plain CORS without it
+    // (shared/feed-origin.ts) — so the usual reason for landing here is a network
+    // failure. Copy that asserted the permission was the cause sent offline users
+    // to a button that could not help them. It must read as a failed check first
+    // and a suggestion second.
     const el = renderStoreBanner(document, { kind: "needs-permission" });
     expect(el.className).toContain("gfn-check-banner--unknown");
-    expect(el.querySelector(".gfn-check-banner-text")!.textContent).toBe(
-      "GeForce NOW: click the toolbar icon to enable checks",
-    );
+    const text = el.querySelector(".gfn-check-banner-text")!.textContent!;
+    expect(text).toBe("GeForce NOW: couldn't check — the toolbar icon may help");
+    expect(text).toContain("couldn't check");
+    expect(text).not.toMatch(/\benable\b/i);
   });
 
   test("supported with cms + gfn ids: main link opens the native app, web chip falls back", () => {
@@ -123,10 +129,14 @@ describe("renderWishlistPill", () => {
     const el = renderWishlistPill(document, { kind: "not-supported" });
     expect(el.textContent).toContain("Not available");
   });
-  test("needs-permission", () => {
+  test("needs-permission reads as a failed check, like unknown", () => {
+    // A pill has no room to word a suggestion honestly, and a wishlist row isn't
+    // where that conversation belongs — the popup has space to explain. Both
+    // failure states therefore render identically here.
     const el = renderWishlistPill(document, { kind: "needs-permission" });
     expect(el.className).toContain("gfn-check-pill--unknown");
-    expect(el.textContent).toContain("Enable in toolbar");
+    expect(el.textContent).toContain("Couldn't check");
+    expect(el.textContent).not.toMatch(/\benable\b/i);
   });
 });
 

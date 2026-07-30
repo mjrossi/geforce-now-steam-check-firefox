@@ -41,17 +41,23 @@
   <body>
     <main>
       <h1>GeForce NOW check for Steam</h1>
-      <p class="sub">One quick step before you start browsing Steam.</p>
+      <p class="sub">You're all set — here's what it does.</p>
       <p>
-        To badge Steam games with their GeForce NOW availability, the extension
-        reads NVIDIA's public catalog. Firefox requires you to grant access to
-        that site explicitly:
+        Open any Steam game page or your wishlist and you'll see whether the game
+        streams on <strong>NVIDIA GeForce NOW</strong>: a green marker when it
+        does, a neutral one when it doesn't. Availability comes from NVIDIA's
+        public catalog, cached locally and refreshed every 12 hours.
       </p>
       <div class="status">
         <span id="dot" class="dot dot--off"></span>
-        <span id="status-text">Permission not yet granted</span>
+        <span id="status-text">Checking…</span>
       </div>
-      <button id="enable">Enable GeForce NOW checks</button>
+      <p class="sub" id="optional">
+        Optional: you can allow the add-on to read NVIDIA's catalog directly. It
+        isn't needed today — checks work without it — but it keeps them working if
+        NVIDIA ever changes how the catalog may be read.
+      </p>
+      <button id="enable">Allow direct catalog access</button>
       <script src="onboarding.js"></script>
     </main>
   </body>

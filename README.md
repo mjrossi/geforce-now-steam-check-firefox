@@ -27,8 +27,10 @@ GeForce NOW catalog and draws a small badge:
   This Firefox → Load Temporary Add-on → pick any file in `dist/`. Temporary add-ons
   unload when Firefox restarts.
 
-After installing, a welcome tab asks you to grant access to NVIDIA's catalog — Firefox
-requires that step explicitly, and badges stay in a "couldn't check" state until you do.
+Badges work as soon as it's installed; there's nothing to accept first. A welcome tab
+offers optional direct access to NVIDIA's catalog — worth taking, since it keeps checks
+working if NVIDIA ever changes how the catalog may be read, but the extension does not
+depend on it.
 
 > Steam's wishlist markup changes often; if a badge ever looks wrong, please
 > [open an issue](https://github.com/mjrossi/geforce-now-steam-check-firefox/issues).

@@ -58,6 +58,28 @@ coverage — this release is about surviving and supporting a wider install base
   now says so directly. A failed refresh also keeps showing the previous catalog's size
   and age instead of replacing it with an error, since that catalog is still what your
   badges are being answered from.
+- **The catalog permission is no longer sold as required, because it isn't.** NVIDIA's
+  catalog endpoint allows cross-origin reads, so the add-on fetches it perfectly well
+  without the `games.geforce.com` grant — badges have always worked on a clean install with
+  nothing accepted. The onboarding page, the popup, and the `!` toolbar badge all claimed
+  otherwise. The grant is now offered as what it is: optional insurance, in case NVIDIA ever
+  changes how the catalog may be read. Onboarding introduces the add-on instead of demanding
+  a step, and the offer disappears once taken rather than sitting there as an unfinished
+  task.
+- **The toolbar badge and popup now report the permission that actually matters.** Access to
+  `store.steampowered.com` — which comes from the content scripts, is granted by default,
+  and can be switched off in Firefox's Add-ons Manager — is what the extension genuinely
+  depends on: without it no badge can appear anywhere. It was never surfaced, so an add-on
+  disabled that way showed a green "Enabled" light and no explanation. The `!` badge now
+  tracks that instead of nagging about the optional grant.
+- **"Couldn't check" no longer blames the permission.** A failed catalog fetch showed
+  "click the toolbar icon to enable checks" whenever the optional grant was missing, which
+  was usually wrong — the fetch works without it, so the real cause was normally the
+  network, and offline users were pointed at a button that could not help them. It now reads
+  "couldn't check — the toolbar icon may help": a suggestion, not a diagnosis.
+- The popup labels its count **Steam games**, since it counts the indexed subset (~2000)
+  rather than NVIDIA's full catalog (~2200). The gap is titles with no Steam version,
+  delisted entries, and unreleased placeholders.
 - Internal: `resolveBannerLinks` splits store-banner link resolution out of DOM building,
   making the stale-cache degradation matrix directly testable. The refresh success rule,
   the load coordinator, the wishlist memo, and the store page's retry state machine

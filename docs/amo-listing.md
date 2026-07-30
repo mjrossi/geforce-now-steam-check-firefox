@@ -88,6 +88,8 @@ First stable release. This one is about badges being right and staying right, ra
 - A badge that couldn't be checked — or that asked you to enable the add-on from the toolbar — now fixes itself once it can be, without a reload.
 - Wishlist badges keep up better when scrolling long lists.
 - Several open Steam tabs no longer each download their own copy of the catalog.
+- Badges now work the moment you install — the catalog permission the welcome page used to insist on turns out not to be needed, and is offered as an optional safeguard instead.
+- If you ever switch off this add-on's access to Steam in Firefox's Add-ons Manager, the toolbar icon and popup now tell you that's why badges disappeared.
 
 Thanks to everyone who tried the beta and filed reports.
 ```
@@ -150,25 +152,40 @@ indicating whether each game is playable on NVIDIA GeForce NOW. It runs only on
 store.steampowered.com app and wishlist pages.
 
 PERMISSIONS / DATA
-- "storage": caches NVIDIA's GeForce NOW catalog locally (~12h TTL).
-- host access to https://games.geforce.com/*: the only network request, used to
-  fetch NVIDIA's public GFN catalog (the same catalog the GeForce NOW web app uses).
+- "storage": caches NVIDIA's GeForce NOW catalog locally (~12h TTL), plus the
+  timestamp of the last fetch.
+- content scripts on https://store.steampowered.com/app/* and /wishlist/*: reads
+  the Steam app IDs already present on the page in order to draw a badge.
+- host_permissions for https://games.geforce.com/*: declared because that is the
+  one host the add-on contacts, to fetch NVIDIA's public GFN catalog (the same
+  catalog the GeForce NOW web app uses). See the note below — it is requested at
+  runtime and is NOT required for the add-on to function.
 No user data, browsing activity, or Steam account info is collected or transmitted.
 No analytics, no remote logging.
 
-FIRST-RUN PERMISSION GRANT (please read before testing)
-On install, the extension opens a short onboarding page asking you to grant access
-to games.geforce.com. Please accept it — without that grant the catalog cannot be
-fetched and badges will show a neutral "couldn't check" state instead of a
-supported / not-supported result.
+ABOUT THE games.geforce.com GRANT (please read before testing)
+Firefox MV3 does not grant host_permissions at install, so the add-on requests
+this one at runtime from its toolbar popup and its onboarding page. Testing does
+NOT depend on accepting it: games.geforce.com/graphql responds with
+"access-control-allow-origin: *" and permits the content-type header, and the
+add-on fetches with credentials omitted, so the request satisfies ordinary CORS
+and succeeds whether or not the grant is given. Badges therefore work on a clean
+install with nothing accepted.
+
+The grant is offered as insurance — it makes the add-on independent of NVIDIA's
+CORS policy — and the UI presents it that way, as optional. We mention it here
+because earlier drafts of these notes wrongly described it as required.
 
 HOW TO TEST
-1. Install and grant the games.geforce.com permission when prompted.
+1. Install. No permission prompt is needed; you may accept or ignore the optional
+   grant offered on the onboarding page — badges work either way.
 2. Open a supported title, e.g. https://store.steampowered.com/app/1091500/
    (Cyberpunk 2077) — a green "Playable on GeForce NOW" badge appears in the header.
 3. Open your Steam wishlist (https://store.steampowered.com/wishlist/) — supported
    games show a green GeForce NOW pill; unsupported ones show "Not available".
    (If the catalog is momentarily unreachable you'll see "couldn't check"; reload.)
+4. Optional, to see the failure path: go offline and reload a game page — the badge
+   reads "couldn't check" and never a false "not supported".
 
 BUILDING FROM SOURCE (bundled with esbuild)
 Tooling is pinned via mise (Node 22.22.3) and just:
