@@ -1,4 +1,4 @@
-import type { GfnApp, GfnIndexEntry } from "../feed/types";
+import type { GfnIndexEntry } from "../feed/types";
 import type {
   BackgroundRequest,
   LookupRequest,
@@ -7,6 +7,7 @@ import type {
   StatusResponse,
 } from "../shared/messages";
 import { type FeedCache, type LoadDeps } from "../feed/feed-cache";
+import { type AppsPage, fetchAllPages } from "../feed/fetch-catalog";
 import { createLoadCoordinator } from "../feed/load-coordinator";
 import { readStatus, refreshCatalog } from "../feed/refresh";
 import { hasFeedPermission } from "../shared/permission";
@@ -37,11 +38,6 @@ const APPS_QUERY = `query($after: String) {
     }
   }
 }`;
-
-interface AppsPage {
-  pageInfo: { hasNextPage: boolean; endCursor: string | null };
-  items: GfnApp[];
-}
 
 /** Fetch one page of the catalog. Throws on HTTP, transport, or GraphQL errors
  *  so loadIndex's stale-cache fallback engages instead of caching a partial. */
@@ -99,19 +95,13 @@ const deps: LoadDeps = {
     await browser.storage.local.set({ [CACHE_KEY]: cache, [EPOCH_KEY]: cache.fetchedAt });
   },
   async fetchFeed() {
-    const apps: GfnApp[] = [];
-    let after: string | null = null;
     log.info("fetching GeForce NOW catalog…");
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const { items, pageInfo }: AppsPage = await fetchAppsPage(after);
-      apps.push(...items);
-      if (!pageInfo.hasNextPage || !pageInfo.endCursor) {
-        log.info(`catalog fetched: ${apps.length} apps across ${page + 1} page(s)`);
-        return apps;
-      }
-      after = pageInfo.endCursor;
+    const { apps, pages, truncated } = await fetchAllPages(fetchAppsPage, MAX_PAGES);
+    if (truncated) {
+      log.warn(`catalog fetch hit MAX_PAGES (${MAX_PAGES}); using ${apps.length} apps`);
+    } else {
+      log.info(`catalog fetched: ${apps.length} apps across ${pages} page(s)`);
     }
-    log.warn(`catalog fetch hit MAX_PAGES (${MAX_PAGES}); using ${apps.length} apps`);
     return apps;
   },
   now: () => Date.now(),
