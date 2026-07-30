@@ -194,6 +194,10 @@ https://github.com/mjrossi/geforce-now-steam-check-firefox
 
 ## Submission checklist
 
+0. Run `just check`, then work through `docs/pre-release-testing.md`. Its §A covers the
+   things unit tests structurally can't reach (the permission opt-in, real browser events,
+   the storage broadcast that heals open pages) — and note `just dev` auto-grants the host
+   permission, so the permission flows need a real install to test at all.
 1. Bump version in `src/manifest.json` + `package.json`; update `CHANGELOG.md`; commit + tag.
 2. `just package` → uploadable zip in `web-ext-artifacts/`.
 3. `git archive ... source-<version>.zip HEAD` → source archive.
