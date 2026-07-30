@@ -44,11 +44,22 @@ any assumption about what a given launch method does.
 
 ### Consoles
 
-- **Background:** `about:debugging#/runtime/this-firefox` → the extension → **Inspect**. This
-  opens a separate DevTools window; its console is the one with `browser` in scope. Clicking
-  Inspect also wakes the event page if MV3 has suspended it.
+- **Background** — the one with `browser` in scope, needed for every helper below:
+  1. New tab → `about:debugging`
+  2. **This Firefox** in the left sidebar
+  3. Find *GeForce NOW check for Steam* (under **Temporary Extensions** if loaded that way)
+  4. Click **Inspect** → a separate DevTools window opens
+  5. **Console** tab
+
+  Clicking Inspect also wakes the event page if MV3 has suspended it.
 - **Content scripts:** the Steam page's own DevTools console (F12). Content-script output
   lands here, not in the background console.
+- **Catching install-time logs** (`onInstalled:`) is the awkward case, since you can't attach
+  the inspector before the extension exists. Either read it from the background console's
+  buffer straight after installing, or — if the background has since restarted and dropped it
+  — tick **Enable browser chrome and add-on debugging toolboxes** in `about:debugging` and use
+  the Browser Console (Ctrl+Shift+J), which survives extension reloads. `browser` is *not* in
+  scope there; it's for reading output, not running helpers.
 
 Everything is prefixed `[gfn-check]`; filter on it. §A.1 needs both consoles open at once.
 
@@ -170,6 +181,12 @@ Before this release, step 7 stayed stuck indefinitely.
 ### A.4 · The onboarding-tab grant path (the `visibilitychange` half)
 
 1. **Real mode**, storage cleared, permission not granted.
+
+   To get a genuine first install, **Remove** the temporary add-on in `about:debugging` and
+   Load Temporary Add-on again — **Reload** deliberately does not re-fire it. The gate is
+   `details.reason === "install" && !hasFeedPermission()`, so a reload reports `"update"` and
+   correctly skips onboarding, and `just dev`'s auto-grant skips it too. The background logs
+   `[gfn-check] onInstalled: <reason>` unconditionally; check that before calling it a bug.
 2. Open a store page in tab A → "click the toolbar icon to enable checks".
 3. Grant the permission from the onboarding tab (or the popup) **in a different tab**, so
    returning to tab A is a genuine tab switch.
