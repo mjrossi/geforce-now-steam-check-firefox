@@ -3,12 +3,15 @@
 Everything needed to submit this extension to addons.mozilla.org (AMO). Keep this in
 sync when the listing copy or build process changes.
 
+**Listing:** https://addons.mozilla.org/firefox/addon/geforce-now-check-for-steam/ (the
+locale-less form redirects to the visitor's locale — prefer it when linking).
+
 **Add-on ID:** `gfn-check@mjrossi` (already registered on AMO). Submit new versions under
 the **existing** add-on (Developer Hub → Manage My Submissions → Upload a New Version),
 **not** "Submit a New Add-on" — that errors with "Duplicate add-on ID".
 
-**Distribution:** listed channel ("On this site"), with the **"experimental"** flag
-checked while in beta (uncheck to promote to stable later).
+**Distribution:** listed channel ("On this site"). Uncheck the **"experimental"** flag
+when 1.0.0 goes up — that is what the release is for — and leave it unchecked after.
 
 ---
 
@@ -24,6 +27,9 @@ checked while in beta (uncheck to promote to stable later).
 - **Privacy policy:** include it (text below) — optional since data collection is "none",
   but reassuring at no cost.
 - **EULA:** none. Unnecessary for a free, MIT-licensed extension; skip it.
+- **Minimum Firefox:** 128 (set via `strict_min_version`). Required by
+  `optional_host_permissions`, which backs the popup's one-click "always run on Steam"
+  button; 128 is also where the per-site "only when clicked" control shipped.
 - **Applications:** Firefox (desktop) only. Leave **Firefox for Android** unchecked — the
   content scripts target desktop Steam markup and are untested on mobile.
 
@@ -62,7 +68,7 @@ The extension caches NVIDIA's public GeForce NOW catalog locally, refreshed ever
 
 > No data collection, no analytics, no accounts. The only network request is to NVIDIA's public catalog at games.geforce.com. Nothing about you, your browsing, or your Steam account is ever sent anywhere.
 
-Beta release. Open source on [GitHub](https://github.com/mjrossi/geforce-now-steam-check-firefox) (MIT licensed) — bug reports welcome.
+Open source on [GitHub](https://github.com/mjrossi/geforce-now-steam-check-firefox) (MIT licensed) — bug reports welcome.
 
 *GeForce NOW and RTX are trademarks of NVIDIA Corporation; Steam is a trademark of Valve Corporation. This extension is an independent project not affiliated with or endorsed by NVIDIA or Valve.*
 ```
@@ -71,19 +77,25 @@ Beta release. Open source on [GitHub](https://github.com/mjrossi/geforce-now-ste
 
 ## Release notes (per-version field)
 
-First listed version (0.3.0) — frame as a first release, since AMO users never saw earlier versions (the 0.2.x listed attempts were superseded before approval):
+Keep these a tight user-facing changelog — what changed for *them*, not for the codebase.
+The full developer changelog lives in `CHANGELOG.md`.
+
+1.0.0 (first stable release — the experimental flag comes off with this version):
 
 ```
-First public beta release.
+First stable release. This one is about badges being right and staying right, rather than new pages.
 
-GeForce NOW check for Steam badges Steam store pages and your wishlist with whether each game is playable on NVIDIA GeForce NOW — so you can tell at a glance, without leaving Steam.
+- Fixed badges sometimes not appearing at all right after Firefox starts or the add-on updates. They now show "couldn't check" instead of nothing.
+- The toolbar popup shows how many games are in the catalog and when it was last updated, with a "Refresh catalog" button for when a badge looks out of date.
+- "Refresh catalog" now updates the Steam pages you already have open, instead of only taking effect after a reload.
+- A badge that couldn't be checked now fixes itself once it can be, without a reload.
+- Wishlist badges keep up better when scrolling long lists.
+- Several open Steam tabs no longer each download their own copy of the catalog.
+- Badges now work the moment you install — the catalog permission the welcome page used to insist on turns out not to be needed, and is offered as an optional safeguard instead.
+- If this add-on is set to run on Steam only when clicked, the toolbar icon and popup now say so — and offer a button to switch it to automatic, instead of leaving you to find the setting.
 
-This is a beta: Steam's wishlist layout changes often, so if a badge ever looks wrong, please file a report on GitHub. Thanks for trying it!
+Thanks to everyone who tried the beta and filed reports.
 ```
-
-For later versions, switch to a tight user-facing changelog (what changed for *them*), e.g.
-`- Fixed wishlist badges not appearing on the new layout`. The full developer changelog
-lives in `CHANGELOG.md`.
 
 ---
 
@@ -108,7 +120,7 @@ Captions:
 GeForce NOW check for Steam does not collect, store, or transmit any personal data. There are no analytics, no tracking, and no accounts.
 
 - Network requests: The extension makes a single kind of outbound request — it fetches NVIDIA's public GeForce NOW game catalog from games.geforce.com. No information about you, your browsing, or your Steam account is sent; the request asks only for the public list of supported games.
-- Local storage: The fetched catalog is cached in your browser for up to 12 hours so it isn't refetched on every page. This cache never leaves your device and contains only NVIDIA's public catalog data.
+- Local storage: The fetched catalog is cached in your browser for up to 12 hours so it isn't refetched on every page, alongside the time of the last fetch (used to tell open Steam pages that a newer catalog is available). This never leaves your device and contains only NVIDIA's public catalog data and that timestamp.
 - Page access: Content scripts run only on store.steampowered.com store and wishlist pages, where they read the Steam app IDs already on the page to look them up and draw a badge. Nothing else is read or transmitted.
 
 The extension declares no data collection in its manifest. Questions: https://github.com/mjrossi/geforce-now-steam-check-firefox/issues
@@ -143,25 +155,44 @@ indicating whether each game is playable on NVIDIA GeForce NOW. It runs only on
 store.steampowered.com app and wishlist pages.
 
 PERMISSIONS / DATA
-- "storage": caches NVIDIA's GeForce NOW catalog locally (~12h TTL).
-- host access to https://games.geforce.com/*: the only network request, used to
-  fetch NVIDIA's public GFN catalog (the same catalog the GeForce NOW web app uses).
+- "storage": caches NVIDIA's GeForce NOW catalog locally (~12h TTL), plus the
+  timestamp of the last fetch.
+- optional_host_permissions for the two store.steampowered.com content-script
+  patterns: declared only so the toolbar popup can call permissions.request() to
+  restore standing access when the user has set the add-on to "only when clicked".
+  It requests nothing beyond what the content scripts already match.
+- content scripts on https://store.steampowered.com/app/* and /wishlist/*: reads
+  the Steam app IDs already present on the page in order to draw a badge.
+- host_permissions for https://games.geforce.com/*: declared because that is the
+  one host the add-on contacts, to fetch NVIDIA's public GFN catalog (the same
+  catalog the GeForce NOW web app uses). See the note below — it is requested at
+  runtime and is NOT required for the add-on to function.
 No user data, browsing activity, or Steam account info is collected or transmitted.
 No analytics, no remote logging.
 
-FIRST-RUN PERMISSION GRANT (please read before testing)
-On install, the extension opens a short onboarding page asking you to grant access
-to games.geforce.com. Please accept it — without that grant the catalog cannot be
-fetched and badges will show a neutral "couldn't check" state instead of a
-supported / not-supported result.
+ABOUT THE games.geforce.com GRANT (please read before testing)
+Firefox MV3 does not grant host_permissions at install, so the add-on requests
+this one at runtime from its toolbar popup and its onboarding page. Testing does
+NOT depend on accepting it: games.geforce.com/graphql responds with
+"access-control-allow-origin: *" and permits the content-type header, and the
+add-on fetches with credentials omitted, so the request satisfies ordinary CORS
+and succeeds whether or not the grant is given. Badges therefore work on a clean
+install with nothing accepted.
+
+The grant is offered as insurance — it makes the add-on independent of NVIDIA's
+CORS policy — and the UI presents it that way, as optional. We mention it here
+because earlier drafts of these notes wrongly described it as required.
 
 HOW TO TEST
-1. Install and grant the games.geforce.com permission when prompted.
+1. Install. No permission prompt is needed; you may accept or ignore the optional
+   grant offered on the onboarding page — badges work either way.
 2. Open a supported title, e.g. https://store.steampowered.com/app/1091500/
    (Cyberpunk 2077) — a green "Playable on GeForce NOW" badge appears in the header.
 3. Open your Steam wishlist (https://store.steampowered.com/wishlist/) — supported
    games show a green GeForce NOW pill; unsupported ones show "Not available".
    (If the catalog is momentarily unreachable you'll see "couldn't check"; reload.)
+4. Optional, to see the failure path: go offline and reload a game page — the badge
+   reads "couldn't check" and never a false "not supported".
 
 BUILDING FROM SOURCE (bundled with esbuild)
 Tooling is pinned via mise (Node 22.22.3) and just:
@@ -187,10 +218,14 @@ https://github.com/mjrossi/geforce-now-steam-check-firefox
 
 ## Submission checklist
 
+0. Run `just check`, then work through `docs/pre-release-testing.md`. Its §A covers the
+   things unit tests structurally can't reach (the permission opt-in, real browser events,
+   the storage broadcast that heals open pages) — and note `just dev` auto-grants the host
+   permission, so the permission flows need a real install to test at all.
 1. Bump version in `src/manifest.json` + `package.json`; update `CHANGELOG.md`; commit + tag.
 2. `just package` → uploadable zip in `web-ext-artifacts/`.
 3. `git archive ... source-<version>.zip HEAD` → source archive.
 4. AMO → existing add-on → Upload a New Version → **listed** channel.
 5. Upload package zip; answer source-required **Yes**; upload source zip + build instructions.
 6. Fill/confirm listing metadata, screenshots, summary, description, release notes.
-7. Check **experimental**; submit for review.
+7. Confirm **experimental** stays **unchecked**; submit for review.

@@ -21,14 +21,19 @@ GeForce NOW catalog and draws a small badge:
 
 ## Install
 
-- **Firefox Add-ons (AMO)** _(recommended, once live)_: a beta listing is pending review —
-  the install link will go here when it's published.
-- **From source (until then):** clone the repo, run `just build`, then load it via
-  `about:debugging` → This Firefox → Load Temporary Add-on → pick any file in `dist/`.
-  Temporary add-ons unload when Firefox restarts.
+- **Firefox Add-ons (AMO)** _(recommended)_:
+  [Add to Firefox](https://addons.mozilla.org/firefox/addon/geforce-now-check-for-steam/)
+- **From source:** clone the repo, run `just build`, then load it via `about:debugging` →
+  This Firefox → Load Temporary Add-on → pick any file in `dist/`. Temporary add-ons
+  unload when Firefox restarts.
 
-> This extension is in **beta**. Steam's wishlist markup changes often; if a badge looks
-> wrong, please [open an issue](https://github.com/mjrossi/geforce-now-steam-check-firefox/issues).
+Badges work as soon as it's installed; there's nothing to accept first. A welcome tab
+offers optional direct access to NVIDIA's catalog — worth taking, since it keeps checks
+working if NVIDIA ever changes how the catalog may be read, but the extension does not
+depend on it.
+
+> Steam's wishlist markup changes often; if a badge ever looks wrong, please
+> [open an issue](https://github.com/mjrossi/geforce-now-steam-check-firefox/issues).
 
 ## Privacy
 
@@ -74,20 +79,23 @@ just install      # npm ci — installs exact deps from package-lock.json
 just build        # node build.mjs → writes the unpacked extension to dist/
 ```
 
-`build.mjs` bundles the three entry points as classic IIFE scripts and copies
-`src/manifest.json`, `icons/`, and the extension HTML pages into `dist/`. No
-post-processing, minification toggles, or environment variables are involved.
+`build.mjs` bundles the five entry points (background, store, wishlist, popup,
+onboarding) as classic IIFE scripts and copies `src/manifest.json`, `icons/`, and the
+extension HTML pages into `dist/`. No post-processing, minification toggles, or
+environment variables are involved.
 
 ## Debugging
 
-The background script honors two `browser.storage.local` flags. Set them from
-the extension's background console (`about:debugging` → Inspect):
+To refetch the catalog, use **Refresh catalog** in the toolbar popup — it also shows how
+many games are indexed and how long ago they were fetched. Any Steam pages you have open
+re-check themselves when it lands, so there is no need to reload them.
+
+For per-lookup detail, set this flag from the extension's background console
+(`about:debugging` → Inspect); it takes effect immediately, no reload needed:
 
 ```js
 // Log every lookup: index size, and hit/miss per app id.
 browser.storage.local.set({ "gfn-debug": true });
-// Force a one-time feed refetch, bypassing the 12 h cache (auto-clears).
-browser.storage.local.set({ "gfn-force-refresh": true });
 ```
 
 With `gfn-debug` on, reload a store page (e.g.

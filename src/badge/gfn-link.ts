@@ -1,3 +1,5 @@
+import type { BadgeState } from "../feed/resolve-state";
+
 /** Deep link into the GeForce NOW web app for one game, per NVIDIA's GFN SDK
  *  deep-linking spec (game-id plus the utm params the spec requires). `gfnId`
  *  is the catalog app UUID carried in the index as `gfnId`. */
@@ -23,4 +25,29 @@ export function gfnAppUrl(cmsId: number, gfnId: string): string {
     `geforcenow://route/#?cmsId=${String(cmsId)}&launchSource=External` +
     `&shortName=${id}&parentGameId=${id}`
   );
+}
+
+/** Which links the store banner can offer for a badge state.
+ *
+ *  Only supported games link anywhere, and how far we get depends on which ids
+ *  the index entry carries — a stale cache written by an older version, served
+ *  after a failed refetch, is missing the newer ones:
+ *
+ *  - v3 entry (gfnId + cmsId) → both: native app link, plus the web link as the
+ *    "no app installed" escape hatch
+ *  - v2 entry (gfnId only)    → web link only
+ *  - v1 entry / not supported → neither; the banner renders inert
+ *
+ *  Degrading is always to *fewer* links, never to a wrong one. */
+export function resolveBannerLinks(state: BadgeState): {
+  appUrl: string | null;
+  webUrl: string | null;
+} {
+  if (state.kind !== "supported" || state.gfnId === undefined) {
+    return { appUrl: null, webUrl: null };
+  }
+  return {
+    appUrl: state.cmsId === undefined ? null : gfnAppUrl(state.cmsId, state.gfnId),
+    webUrl: gfnPlayUrl(state.gfnId),
+  };
 }

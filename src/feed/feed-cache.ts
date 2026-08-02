@@ -24,9 +24,13 @@ export interface LoadDeps {
   forceRefresh?: boolean;
 }
 
+/** `refetched` says whether *this* load wrote a new cache entry — the only
+ *  honest answer to "did the refresh button do anything". It is deliberately not
+ *  derivable from `ok`, which is true both for a fresh fetch and for a stale
+ *  cache served after a failed one. */
 export type LoadResult =
-  | { ok: true; index: GfnIndex }
-  | { ok: false; index: null };
+  | { ok: true; index: GfnIndex; refetched: boolean }
+  | { ok: false; index: null; refetched: false };
 
 /** Return a usable GFN index, refreshing from the network when the cache is
  *  missing or older than ttlMs. On fetch failure, fall back to stale cache if
@@ -39,15 +43,18 @@ export async function loadIndex(deps: LoadDeps): Promise<LoadResult> {
     cache !== null &&
     cache.version === CACHE_VERSION &&
     deps.now() - cache.fetchedAt < deps.ttlMs;
-  if (fresh) return { ok: true, index: cache.index };
+  if (fresh) return { ok: true, index: cache.index, refetched: false };
 
   try {
     const feed = await deps.fetchFeed();
     const index = buildIndex(feed);
+    // `setCache` is inside the try on purpose: if the write fails there is no new
+    // cache entry, so this was not a refetch as far as any other caller is
+    // concerned, and falling back to stale keeps that consistent.
     await deps.setCache({ fetchedAt: deps.now(), version: CACHE_VERSION, index });
-    return { ok: true, index };
+    return { ok: true, index, refetched: true };
   } catch {
-    if (cache !== null) return { ok: true, index: cache.index };
-    return { ok: false, index: null };
+    if (cache !== null) return { ok: true, index: cache.index, refetched: false };
+    return { ok: false, index: null, refetched: false };
   }
 }

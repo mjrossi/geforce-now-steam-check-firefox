@@ -1,4 +1,5 @@
 import { parseAppId, parseAppIdFromImage } from "../feed/parse-app-id";
+import { STATE_ATTR } from "../badge/badge";
 
 /** Marker class on the span we inject into each wishlist row. */
 export const PILL_SLOT = "gfn-check-pill-slot";
@@ -17,6 +18,12 @@ export const APP_ID_ATTR = "data-gfn-app-id";
 const LEGACY_ROW_SELECTOR = ".wishlist_row";
 const MAX_CLIMB = 8;
 
+// The two nodes that name a game on a wishlist page. Both are live-Steam-DOM
+// dependent and are the first thing to re-verify with `just dev` if rows stop
+// being found — named here so there is one copy to check, not five.
+const APP_LINK = 'a[href*="/app/"]';
+const CAPSULE = 'img[src*="/apps/"]';
+
 // Stable Steam-wide chrome that also contains `/app/` links (global nav, footer,
 // responsive menu). Seeds inside these must never be treated as wishlist rows,
 // or we'd badge unrelated games in the header/footer.
@@ -26,16 +33,21 @@ function inChrome(el: Element): boolean {
   return CHROME_SELECTORS.some((sel) => el.closest(sel) !== null);
 }
 
+/** The Steam app id a node names: an `/app/` link's href, or an `/apps/` capsule
+ *  image's src. One rule, used both to scan a subtree and to seed a row — they
+ *  have to agree, and stating it twice was an invitation for them not to. */
+function appIdOf(el: Element): number | null {
+  return (
+    parseAppId(el.getAttribute("href") ?? "") ?? parseAppIdFromImage(el.getAttribute("src") ?? "")
+  );
+}
+
 /** All Steam app ids referenced by a subtree, via `/app/` anchors and `/apps/`
  *  capsule images. Used to find the bounding row container for one game. */
 export function appIdsIn(el: Element): Set<number> {
   const ids = new Set<number>();
-  for (const a of el.querySelectorAll<HTMLAnchorElement>('a[href*="/app/"]')) {
-    const id = parseAppId(a.getAttribute("href") ?? "");
-    if (id !== null) ids.add(id);
-  }
-  for (const img of el.querySelectorAll<HTMLImageElement>('img[src*="/apps/"]')) {
-    const id = parseAppIdFromImage(img.getAttribute("src") ?? "");
+  for (const node of el.querySelectorAll(`${APP_LINK}, ${CAPSULE}`)) {
+    const id = appIdOf(node);
     if (id !== null) ids.add(id);
   }
   return ids;
@@ -59,53 +71,88 @@ export function rowContainer(seed: HTMLElement, appId: number, root: Element): H
 }
 
 /** Collect one row element per wishlisted game within `root`. This is the part
- *  to re-verify against the live wishlist DOM if rendering ever breaks again. */
+ *  to re-verify against the live wishlist DOM if rendering ever breaks again.
+ *
+ *  **One element badges at most one game, and that is enforced here.** An element
+ *  holds a single pill slot, so two ids mapped to the same element both claim it:
+ *  `paint` finds the other id's slot, reads it as stale, and swaps in its own. The
+ *  row then shows the *wrong* game's availability — the authoritative-looking wrong
+ *  answer this extension is built to avoid — and re-swaps on every pass, each swap
+ *  waking the observer that schedules the next one. Two shapes reach it: a legacy
+ *  row that names a second game (a bundle link, or one injected by another
+ *  extension), and an `<a href="/app/A">` wrapping an `/apps/B/` capsule, where the
+ *  link stops its climb at the anchor and the image climbs into it. The later claim
+ *  is dropped, so the row degrades to *no* badge rather than a confident wrong one. */
 export function findRows(root: Element): Map<number, HTMLElement> {
   const rows = new Map<number, HTMLElement>();
+  const claimed = new Set<HTMLElement>();
+  // First claim wins, which is why seed order below is deliberate.
+  function claim(id: number, el: HTMLElement): void {
+    if (rows.has(id) || claimed.has(el)) return;
+    claimed.add(el);
+    rows.set(id, el);
+  }
 
   const legacy = root.querySelectorAll<HTMLElement>(LEGACY_ROW_SELECTOR);
   if (legacy.length > 0) {
     for (const row of legacy) {
       if (inChrome(row)) continue;
-      for (const id of appIdsIn(row)) if (!rows.has(id)) rows.set(id, row);
+      // Document order, so the row's own capsule/title link is claimed before any
+      // secondary game it happens to mention further down.
+      for (const id of appIdsIn(row)) claim(id, row);
     }
     if (rows.size > 0) return rows;
   }
 
   // Modern layout: seed from every app link and capsule image (outside chrome),
-  // dedupe per id, and climb each seed to its single-game block.
+  // dedupe per id, and climb each seed to its single-game block. Links first,
+  // then images — not document order: the first seed for an id decides that
+  // game's row, and a link is the more reliable starting point (it is also what
+  // makes the href, not a mismatched nested capsule, win the shared element).
   const seeds: HTMLElement[] = [
-    ...root.querySelectorAll<HTMLElement>('a[href*="/app/"]'),
-    ...root.querySelectorAll<HTMLElement>('img[src*="/apps/"]'),
+    ...root.querySelectorAll<HTMLElement>(APP_LINK),
+    ...root.querySelectorAll<HTMLElement>(CAPSULE),
   ];
   for (const seed of seeds) {
     if (inChrome(seed)) continue;
-    const id =
-      parseAppId(seed.getAttribute("href") ?? "") ??
-      parseAppIdFromImage(seed.getAttribute("src") ?? "");
+    const id = appIdOf(seed);
     if (id === null || rows.has(id)) continue;
-    rows.set(id, rowContainer(seed, id, root));
+    claim(id, rowContainer(seed, id, root));
   }
   return rows;
 }
 
-/** Badge each row idempotently. A row already carrying a slot for the *same* app
- *  id is left alone; a recycled row whose slot is for a different (stale) app id
- *  has it replaced. `pill` builds the badge element for an app id. */
+/** Badge each row idempotently. A row already carrying a slot for the same app
+ *  id *and* the same badge is left alone; anything else — a recycled row now
+ *  showing a different game, or a row whose pending lookup has since resolved —
+ *  has its slot replaced. `pill` builds the badge element for an app id;
+ *  `stateOf` names what that badge depicts.
+ *
+ *  `stateOf` is required on purpose: defaulting it to a constant would silently
+ *  reduce the check to app-id-only matching, which is exactly the bug that left
+ *  "couldn't check" frozen on rows that had since resolved. */
 export function paint(
   doc: Document,
   rows: Map<number, HTMLElement>,
   pill: (appId: number) => HTMLElement,
+  stateOf: (appId: number) => string,
 ): void {
   for (const [appId, row] of rows) {
+    const state = stateOf(appId);
     const existing = row.querySelector<HTMLElement>(`.${PILL_SLOT}`);
     if (existing) {
-      if (existing.getAttribute(APP_ID_ATTR) === String(appId)) continue;
-      existing.remove(); // recycled row: drop the previous game's pill
+      if (
+        existing.getAttribute(APP_ID_ATTR) === String(appId) &&
+        existing.getAttribute(STATE_ATTR) === state
+      ) {
+        continue;
+      }
+      existing.remove(); // stale: recycled row, or a resolved pending lookup
     }
     const slot = doc.createElement("span");
     slot.className = PILL_SLOT;
     slot.setAttribute(APP_ID_ATTR, String(appId));
+    slot.setAttribute(STATE_ATTR, state);
     slot.appendChild(pill(appId));
 
     // Overlay the pill in the corner of the game's capsule so it reads as an
@@ -113,7 +160,7 @@ export function paint(
     // (under the rank/handle column). The capsule's own container becomes the
     // positioning context. Fall back to appending to the row when a row has no
     // capsule image. (Live-DOM dependent — re-verify with `just dev`.)
-    const capsule = row.querySelector<HTMLImageElement>('img[src*="/apps/"]');
+    const capsule = row.querySelector<HTMLImageElement>(CAPSULE);
     const host = capsule?.parentElement;
     if (host) {
       host.classList.add(ANCHOR_CLASS);

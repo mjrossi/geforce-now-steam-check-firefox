@@ -1,7 +1,19 @@
-import type { GfnApp, GfnIndexEntry } from "../feed/types";
-import type { LookupRequest, LookupResponse } from "../shared/messages";
-import { loadIndex, type FeedCache, type LoadDeps } from "../feed/feed-cache";
+import type { GfnIndexEntry } from "../feed/types";
+import type {
+  BackgroundRequest,
+  LookupRequest,
+  LookupResponse,
+  RefreshResponse,
+  StatusResponse,
+} from "../shared/messages";
+import { isLookupRequest } from "../shared/messages";
+import { type FeedCache, type LoadDeps } from "../feed/feed-cache";
+import { type AppsPage, fetchAllPages } from "../feed/fetch-catalog";
+import { createLoadCoordinator } from "../feed/load-coordinator";
+import { readStatus, refreshCatalog } from "../feed/refresh";
 import { hasFeedPermission } from "../shared/permission";
+import { EPOCH_KEY } from "../shared/catalog-epoch";
+import { onLocalKeyChange } from "../shared/storage";
 import { initPermissionGate } from "./permission-gate";
 import { log } from "../shared/log";
 
@@ -28,11 +40,6 @@ const APPS_QUERY = `query($after: String) {
   }
 }`;
 
-interface AppsPage {
-  pageInfo: { hasNextPage: boolean; endCursor: string | null };
-  items: GfnApp[];
-}
-
 /** Fetch one page of the catalog. Throws on HTTP, transport, or GraphQL errors
  *  so loadIndex's stale-cache fallback engages instead of caching a partial. */
 async function fetchAppsPage(after: string | null): Promise<AppsPage> {
@@ -52,16 +59,26 @@ async function fetchAppsPage(after: string | null): Promise<AppsPage> {
 
 const CACHE_KEY = "gfn-feed-cache";
 const TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
-// Diagnostics toggles, read from browser.storage.local. Set in the extension
-// console with e.g. `browser.storage.local.set({ "gfn-debug": true })` to log
-// lookups, or `{ "gfn-force-refresh": true }` to refetch the feed once.
+// Per-lookup diagnostic logging, toggled from the extension console with
+// `browser.storage.local.set({ "gfn-debug": true })`. Mirrored into a local
+// variable rather than read per lookup: the wishlist sends a lookup per
+// debounced mutation batch, and a storage round trip on each one is pure waste.
 const DEBUG_KEY = "gfn-debug";
-const FORCE_REFRESH_KEY = "gfn-force-refresh";
+let debugEnabled = false;
 
-async function readFlag(key: string): Promise<boolean> {
-  const stored = await browser.storage.local.get(key);
-  return stored[key] === true;
-}
+void browser.storage.local
+  .get(DEBUG_KEY)
+  .then((stored) => {
+    debugEnabled = stored[DEBUG_KEY] === true;
+  })
+  .catch(() => {
+    // Diagnostics only — a storage read that fails at startup shouldn't surface as
+    // an unhandled rejection in the background console.
+  });
+onLocalKeyChange(DEBUG_KEY, (value) => {
+  debugEnabled = value === true;
+  log.info(`debug logging ${debugEnabled ? "enabled" : "disabled"}`);
+});
 
 // In-memory copy of the stored cache. Wishlist scrolling sends a lookup per
 // debounced mutation batch, and re-reading the ~150 KB cache from
@@ -77,76 +94,123 @@ const deps: LoadDeps = {
     return cacheMemo;
   },
   async setCache(cache) {
+    // One write, two keys: the cache itself, and the epoch that tells open Steam
+    // pages to re-ask. Doing it here rather than at the call sites means every
+    // path that lands a new catalog — TTL expiry, the popup's Refresh, the
+    // warm-on-permission-grant — heals open pages for free.
+    await browser.storage.local.set({ [CACHE_KEY]: cache, [EPOCH_KEY]: cache.fetchedAt });
+    // Only after the write lands. Memoizing first would leave the memo holding a
+    // catalog that was never persisted and never announced, so the popup would read
+    // the new count and timestamp back out of it while refreshCatalog — which keys
+    // off the write — correctly reported the refresh as failed.
     cacheMemo = cache;
-    await browser.storage.local.set({ [CACHE_KEY]: cache });
   },
   async fetchFeed() {
-    const apps: GfnApp[] = [];
-    let after: string | null = null;
     log.info("fetching GeForce NOW catalog…");
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const { items, pageInfo }: AppsPage = await fetchAppsPage(after);
-      apps.push(...items);
-      if (!pageInfo.hasNextPage || !pageInfo.endCursor) {
-        log.info(`catalog fetched: ${apps.length} apps across ${page + 1} page(s)`);
-        return apps;
-      }
-      after = pageInfo.endCursor;
+    const { apps, pages, truncated } = await fetchAllPages(fetchAppsPage, MAX_PAGES);
+    // A truncated walk is a failed fetch, not a smaller catalog. Using the partial
+    // would cache it with a fresh timestamp and publish an epoch, so every game
+    // past the bound would badge a confident "Not on GeForce NOW" for 12 hours —
+    // the exact failure the mid-walk propagation rule exists to prevent, arrived at
+    // by a different route. Throwing instead hands it to loadIndex's stale-cache
+    // fallback: the previous catalog if there is one, "couldn't check" if not.
+    if (truncated) {
+      throw new Error(`catalog fetch hit MAX_PAGES (${MAX_PAGES}); refusing a partial catalog`);
     }
-    log.warn(`catalog fetch hit MAX_PAGES (${MAX_PAGES}); using ${apps.length} apps`);
+    log.info(`catalog fetched: ${apps.length} apps across ${pages} page(s)`);
     return apps;
   },
   now: () => Date.now(),
   ttlMs: TTL_MS,
 };
 
+// All catalog loads go through here: concurrent lookups share one fetch, and a
+// manual refresh can't interleave with a lookup-driven one.
+const catalog = createLoadCoordinator(deps);
+
 /** Handle a lookup request: ensure the index is loaded, then return the subset
  *  of requested app ids that are supported. */
 async function handleLookup(req: LookupRequest): Promise<LookupResponse> {
-  const debug = await readFlag(DEBUG_KEY);
-  const forceRefresh = await readFlag(FORCE_REFRESH_KEY);
-  if (forceRefresh) await browser.storage.local.remove(FORCE_REFRESH_KEY);
-
-  const result = await loadIndex({ ...deps, forceRefresh });
+  const result = await catalog.load();
   if (!result.ok) {
-    // No index and no cache. Distinguish the opt-in host permission not being
-    // granted (the common "works in `web-ext run`, blank when installed" case)
-    // from a transient fetch failure, so the badge can guide the user.
+    // No index and no cache — the fetch failed. This used to report "permission"
+    // whenever the feed grant was missing, on the assumption that a missing grant
+    // is what blocks the fetch. It isn't: the catalog answers with an open CORS
+    // policy, so an ungranted extension fetches perfectly well (feed-origin.ts).
+    // The inference was therefore usually backwards — an offline user who had
+    // never granted was told to click the toolbar icon, which would not have
+    // helped them.
+    //
+    // A failed fetch is a failed fetch, so say so. The grant is still worth
+    // offering when it's missing, because it's the one thing that could plausibly
+    // help if NVIDIA ever tightens CORS — but it's offered as a suggestion the
+    // badge copy words as such, not as a diagnosis.
     const reason = (await hasFeedPermission()) ? "network" : "permission";
-    log.warn(`feed unavailable (${reason}); ${req.appIds.length} id(s) -> unknown`);
+    log.warn(`feed fetch failed; ${req.appIds.length} id(s) -> unknown (grant missing: ${String(reason === "permission")})`);
     return { ok: false, found: {}, reason };
   }
+  if (debugEnabled) log.info(`index size=${Object.keys(result.index).length}`);
   const found: Record<string, GfnIndexEntry> = {};
   for (const appId of req.appIds) {
-    const hit = result.index[String(appId)];
-    if (hit) found[String(appId)] = hit;
-  }
-  if (debug) {
-    log.info(`index size=${Object.keys(result.index).length}`);
-    for (const appId of req.appIds) {
-      const hit = result.index[String(appId)];
+    const key = String(appId);
+    const hit = result.index[key];
+    if (hit) found[key] = hit;
+    if (debugEnabled) {
       log.info(`appId ${appId}: ${hit ? `supported (rtx=${hit.rtx})` : "NOT in index"}`);
     }
   }
   return { ok: true, found };
 }
 
-/** Refresh the feed cache out of band (e.g. right after the user grants the host
- *  permission) so the next lookup is served from a warm cache. */
-async function warmFeed(): Promise<void> {
-  const result = await loadIndex(deps);
-  log.info(result.ok ? "feed cache warmed" : "feed warm failed (still unavailable)");
+function handleStatus(): Promise<StatusResponse> {
+  return readStatus(deps.getCache);
 }
 
-browser.runtime.onMessage.addListener((message: unknown): Promise<LookupResponse> | undefined => {
-  const req = message as Partial<LookupRequest>;
-  if (req?.type !== "gfn-lookup" || !Array.isArray(req.appIds)) return undefined;
-  return handleLookup(req as LookupRequest);
+async function handleRefresh(): Promise<RefreshResponse> {
+  log.info("manual catalog refresh requested");
+  const result = await refreshCatalog(deps.getCache, catalog.forceLoad);
+  log.info(result.ok ? "manual refresh succeeded" : "manual refresh failed (cache unchanged)");
+  return result;
+}
+
+/** Refresh the feed cache out of band (e.g. right after the user grants the host
+ *  permission) so the next lookup is served from a warm cache.
+ *
+ *  Swallows its own failure: this is called as `void warmFeed()` from the
+ *  permission gate, and `load()` does reject if `storage.local.get` itself fails
+ *  (that read sits outside `loadIndex`'s try). Nothing is waiting on the result,
+ *  so an unhandled rejection in the background console is all it could produce. */
+async function warmFeed(): Promise<void> {
+  try {
+    const result = await catalog.load();
+    log.info(result.ok ? "feed cache warmed" : "feed warm failed (still unavailable)");
+  } catch (err) {
+    log.warn("feed warm threw —", err);
+  }
+}
+
+// Returning a promise answers the sender; returning undefined declines the
+// message so other listeners (and other extensions) can handle it.
+browser.runtime.onMessage.addListener((message: unknown): Promise<unknown> | undefined => {
+  const req = message as Partial<BackgroundRequest> | null;
+  switch (req?.type) {
+    case "gfn-lookup":
+      // Validated rather than cast — see messages.ts. A malformed lookup is
+      // declined like any other message we don't handle.
+      return isLookupRequest(message) ? handleLookup(message) : undefined;
+    case "gfn-status":
+      return handleStatus();
+    case "gfn-refresh":
+      return handleRefresh();
+    default:
+      return undefined;
+  }
 });
 
-// Firefox MV3: host permissions are opt-in and NOT granted on a normal install,
-// so the catalog fetch is blocked until the user enables it via the popup /
-// onboarding tab. This wires the toolbar badge, the cache warm-on-grant, and the
-// first-install onboarding tab.
+// Wires the toolbar badge (driven by *standing Steam access*, i.e. whether badges
+// appear without a click), the cache warm-on-grant, and the first-install
+// onboarding tab. Note the feed host permission, though opt-in and ungranted on a
+// normal install, blocks nothing: the catalog fetch clears plain CORS without it
+// (feed-origin.ts).
 initPermissionGate(warmFeed);
 log.info("background ready");
