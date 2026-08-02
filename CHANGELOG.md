@@ -82,6 +82,11 @@ coverage — this release is about surviving and supporting a wider install base
   was usually wrong — the fetch works without it, so the real cause was normally the
   network, and offline users were pointed at a button that could not help them. It now reads
   "couldn't check — the toolbar icon may help": a suggestion, not a diagnosis.
+- **The add-on icon renders at the right size in `about:addons`.** All five declared icon
+  sizes pointed at one SVG carrying an intrinsic 96×96, so the declared size was a label
+  with no effect and any surface that doesn't constrain both dimensions drew it at 96px.
+  The manifest now points at exact-size PNGs rasterized from `icons/icon.svg`, which stays
+  the source of truth (see `icons/README.md`).
 - The popup labels its count **Steam games**, since it counts the indexed subset (~2000)
   rather than NVIDIA's full catalog (~2200). The gap is titles with no Steam version,
   delisted entries, and unreleased placeholders.

@@ -21,7 +21,12 @@ await esbuild.build({
 });
 
 await cp("src/manifest.json", `${outdir}/manifest.json`);
-await cp("icons", `${outdir}/icons`, { recursive: true });
+// Assets only — icons/README.md documents how the PNGs are rasterized from the SVG
+// and has no business inside the packaged extension.
+await cp("icons", `${outdir}/icons`, {
+  recursive: true,
+  filter: (src) => !src.endsWith(".md"),
+});
 // Extension pages are plain HTML that load their bundled <script src> sibling.
 await cp("src/popup/popup.html", `${outdir}/popup.html`);
 await cp("src/onboarding/onboarding.html", `${outdir}/onboarding.html`);
