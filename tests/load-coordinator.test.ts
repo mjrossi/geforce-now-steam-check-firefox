@@ -126,8 +126,9 @@ describe("createLoadCoordinator", () => {
   });
 
   it("never shares forceLoad with a concurrent load", async () => {
-    // refreshCatalog judges success by its own fetch moving fetchedAt, so a
-    // refresh must not be answered by someone else's in-flight lookup.
+    // A manual refresh means "go get it now", so it must not be quietly answered
+    // by a lookup's in-flight fetch — the user pressed the button because they
+    // believed the catalog on screen was wrong.
     const h = makeDeps();
     const catalog = createLoadCoordinator(h.deps);
 
@@ -137,8 +138,8 @@ describe("createLoadCoordinator", () => {
   });
 
   it("serializes forceLoad against an in-flight load", async () => {
-    // Ordering is what keeps refreshCatalog's before/after comparison from
-    // observing a lookup-driven write instead of its own.
+    // Ordering keeps a manual refresh from running a second full paginated fetch
+    // alongside a lookup-driven one that is already most of the way through.
     const order: string[] = [];
     const gate = deferred<GfnApp[]>();
     let first = true;
