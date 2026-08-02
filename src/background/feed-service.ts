@@ -88,12 +88,16 @@ const deps: LoadDeps = {
     return cacheMemo;
   },
   async setCache(cache) {
-    cacheMemo = cache;
     // One write, two keys: the cache itself, and the epoch that tells open Steam
     // pages to re-ask. Doing it here rather than at the call sites means every
     // path that lands a new catalog — TTL expiry, the popup's Refresh, the
     // warm-on-permission-grant — heals open pages for free.
     await browser.storage.local.set({ [CACHE_KEY]: cache, [EPOCH_KEY]: cache.fetchedAt });
+    // Only after the write lands. Memoizing first would leave the memo holding a
+    // catalog that was never persisted and never announced, so the popup would read
+    // the new count and timestamp back out of it while refreshCatalog — which keys
+    // off the write — correctly reported the refresh as failed.
+    cacheMemo = cache;
   },
   async fetchFeed() {
     log.info("fetching GeForce NOW catalog…");
