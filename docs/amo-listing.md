@@ -155,75 +155,70 @@ Upload that zip, and paste the build instructions from the reviewer notes below.
 
 ## Notes to reviewer (paste-ready)
 
+**Hard limit: 3000 characters.** The text below is 2982, so there is almost no room —
+trim something before adding anything. Keep it ASCII: the field surprised us once by
+counting a longer string than the prose looked, and smart quotes/em dashes are the usual
+cause. The two sections a reviewer actually acts on are the games.geforce.com note (it
+stops them testing against a false premise) and the build instructions (required for the
+source submission) — cut elsewhere first.
+
 ```
 WHAT IT DOES
-GeForce NOW check for Steam adds a small badge to Steam store and wishlist pages
-indicating whether each game is playable on NVIDIA GeForce NOW. It runs only on
-store.steampowered.com app and wishlist pages.
+Adds a badge to Steam store and wishlist pages showing whether each game is
+playable on NVIDIA GeForce NOW. Runs only on store.steampowered.com /app/ and
+/wishlist/ pages.
 
 PERMISSIONS / DATA
-- "storage": caches NVIDIA's GeForce NOW catalog locally (~12h TTL), plus the
+- "storage": caches NVIDIA's public GFN catalog locally (~12h TTL) plus the
   timestamp of the last fetch.
-- optional_host_permissions for the two store.steampowered.com content-script
-  patterns: declared only so the toolbar popup can call permissions.request() to
-  restore standing access when the user has set the add-on to "only when clicked".
-  It requests nothing beyond what the content scripts already match.
-- content scripts on https://store.steampowered.com/app/* and /wishlist/*: reads
-  the Steam app IDs already present on the page in order to draw a badge.
-- host_permissions for https://games.geforce.com/*: declared because that is the
-  one host the add-on contacts, to fetch NVIDIA's public GFN catalog (the same
-  catalog the GeForce NOW web app uses). See the note below — it is requested at
-  runtime and is NOT required for the add-on to function.
-No user data, browsing activity, or Steam account info is collected or transmitted.
-No analytics, no remote logging.
+- content scripts on https://store.steampowered.com/app/* and /wishlist/*: read
+  the Steam app IDs already on the page in order to draw a badge.
+- optional_host_permissions for those same two patterns: declared only so the
+  popup can call permissions.request() when the user has set the add-on to "only
+  when clicked". Nothing beyond what the content scripts already match.
+- host_permissions for https://games.geforce.com/*: the one host contacted, to
+  fetch NVIDIA's public catalog (the same one the GFN web app uses). Requested at
+  runtime, and NOT required - see below.
+No user data, browsing activity or Steam account info is collected or sent. No
+analytics, no remote logging.
 
 ABOUT THE games.geforce.com GRANT (please read before testing)
 Firefox MV3 does not grant host_permissions at install, so the add-on requests
-this one at runtime from its toolbar popup and its onboarding page. Testing does
-NOT depend on accepting it: games.geforce.com/graphql responds with
-"access-control-allow-origin: *" and permits the content-type header, and the
-add-on fetches with credentials omitted, so the request satisfies ordinary CORS
-and succeeds whether or not the grant is given. Badges therefore work on a clean
-install with nothing accepted.
-
-The grant is offered as insurance — it makes the add-on independent of NVIDIA's
-CORS policy — and the UI presents it that way, as optional. We mention it here
-because earlier drafts of these notes wrongly described it as required.
+this one at runtime from its popup and onboarding page. Testing does NOT depend
+on accepting it: games.geforce.com/graphql responds with
+access-control-allow-origin: * and permits the content-type header, and we fetch
+with credentials omitted, so the request satisfies ordinary CORS whether or not
+the grant is given. Badges work on a clean install with nothing accepted. The
+grant is offered as insurance against NVIDIA tightening that CORS policy, and
+the UI presents it as optional.
 
 HOW TO TEST
-1. Install. No permission prompt is needed; you may accept or ignore the optional
-   grant offered on the onboarding page — badges work either way.
-2. Open a supported title, e.g. https://store.steampowered.com/app/1091500/
-   (Cyberpunk 2077) — a green "Playable on GeForce NOW" badge appears in the header.
-3. Open your Steam wishlist (https://store.steampowered.com/wishlist/) — supported
-   games show a green GeForce NOW pill; unsupported ones show "Not available".
-   (If the catalog is momentarily unreachable you'll see "couldn't check"; reload.)
-4. Optional, to see the failure path: go offline and reload a game page — the badge
-   reads "couldn't check" and never a false "not supported".
+1. Install. No prompt is needed; accept or ignore the optional grant on the
+   onboarding page - badges work either way.
+2. Open https://store.steampowered.com/app/1091500/ (Cyberpunk 2077): a green
+   "Playable on GeForce NOW" badge appears in the header.
+3. Open https://store.steampowered.com/wishlist/: supported games get a green
+   pill, unsupported ones "Not available". ("couldn't check" = catalog
+   unreachable; reload.)
+4. Failure path: go offline and reload a game page. The badge reads "couldn't
+   check", never a false "not supported".
 
-BUILDING FROM SOURCE (bundled with esbuild)
+BUILDING FROM SOURCE (bundled with esbuild, no minification)
 Tooling is pinned via mise (Node 22.22.3) and just:
-    mise install     # installs Node 22.22.3 + just
-    just install     # npm ci (exact deps from package-lock.json)
-    just build       # node build.mjs -> writes the unpacked extension to dist/
+    mise install     # Node 22.22.3 + just
+    just install     # npm ci from package-lock.json
+    just build       # node build.mjs -> unpacked extension in dist/
+Without mise/just, on Node 22.22.3: npm ci && node build.mjs
 
-Without mise/just, the equivalent (Node 22.22.3) is:
-    npm ci
-    node build.mjs
-
-build.mjs bundles five entry points (background, store, wishlist, popup, onboarding)
-as classic IIFE scripts and copies src/manifest.json, the icon assets from icons/,
-and the HTML pages into dist/. There is no minification, no environment variables,
-and no other post-processing; dist/ matches the uploaded package.
-
-The icon PNGs in icons/ are committed image assets, not build output — nothing
-rasterizes them during the build. icons/README.md records how they were generated
-from icons/icon.svg for future maintenance; it is excluded from the packaged
-extension and is not needed to build.
+build.mjs bundles five entry points (background, store, wishlist, popup,
+onboarding) as classic IIFE scripts and copies src/manifest.json, the icon
+assets, and the HTML pages into dist/. No minification, no environment
+variables, no other post-processing; dist/ matches the uploaded package. The
+icon PNGs are committed assets, not build output.
 
 SOURCE
 https://github.com/mjrossi/geforce-now-steam-check-firefox
-(also attached as a source archive).
+(also attached as a source archive)
 ```
 
 ---
