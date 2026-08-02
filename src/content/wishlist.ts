@@ -15,32 +15,42 @@ const memo = createStateMemo();
 // isn't re-asked by every mutation batch that lands while it is outstanding —
 // the memo can't dedupe those, since it only records an answer once it arrives.
 const run = coalesce(async () => {
-  const rows = findRows(document.body);
-  if (rows.size === 0) return;
+  // Every call site is `void run()`, so anything escaping here would be an
+  // unhandled rejection in the page console rather than a caught failure — and a
+  // scrolling wishlist would repeat it on every mutation batch. `lookup()` is
+  // contracted never to reject; this covers the DOM walk and the paint, which run
+  // against third-party markup that other extensions also rewrite.
+  try {
+    const rows = findRows(document.body);
+    if (rows.size === 0) return;
 
-  const pending = memo.pending(rows.keys());
-  if (pending.length > 0) {
-    const response = await lookup(pending);
-    for (const appId of pending) {
-      memo.remember(appId, resolveState(appId, response));
+    const pending = memo.pending(rows.keys());
+    if (pending.length > 0) {
+      const response = await lookup(pending);
+      for (const appId of pending) {
+        memo.remember(appId, resolveState(appId, response));
+      }
+      log.info(
+        `wishlist: ${String(pending.length)} new row(s) of ${String(rows.size)}, feed ${
+          response.ok ? "ok" : `unavailable (${response.reason ?? "unknown"})`
+        }`,
+      );
     }
-    log.info(
-      `wishlist: ${String(pending.length)} new row(s) of ${String(rows.size)}, feed ${
-        response.ok ? "ok" : `unavailable (${response.reason ?? "unknown"})`
-      }`,
-    );
-  }
 
-  // Rows still awaiting a definitive answer render "couldn't check"; the next
-  // run retries them, and the state stamp makes paint() replace the placeholder
-  // once they resolve.
-  ensureStyles(document);
-  paint(
-    document,
-    rows,
-    (appId) => renderWishlistPill(document, memo.stateFor(appId)),
-    (appId) => stateStamp(memo.stateFor(appId)),
-  );
+    // Rows still awaiting a definitive answer render "couldn't check"; the next
+    // run retries them, and the state stamp makes paint() replace the placeholder
+    // once they resolve.
+    ensureStyles(document);
+    paint(
+      document,
+      rows,
+      (appId) => renderWishlistPill(document, memo.stateFor(appId)),
+      (appId) => stateStamp(memo.stateFor(appId)),
+    );
+  } catch (err) {
+    // Nothing is memoized on this path, so the next scroll retries from scratch.
+    log.warn("wishlist: run failed —", err);
+  }
 });
 
 void run();
