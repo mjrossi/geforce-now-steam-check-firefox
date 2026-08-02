@@ -333,7 +333,9 @@ Users upgrading arrive with a v3 cache and **no** epoch key.
 6. ✅ Pressing **Refresh catalog** publishes the first epoch and heals open pages from then on.
 
 > Expected and fine: between upgrading and the first catalog write (up to 12 h, or one
-> Refresh press), no epoch exists, so pages heal via the focus/backoff path only.
+> Refresh press), no epoch has been published, so an already-open page heals only on
+> reload — plus, on a store page, its two short retries. There is no focus/visibility
+> revival to fall back on; that path was removed in 1.0.0 (see `store.ts`).
 
 Also confirm the removed `gfn-force-refresh` flag is inert: `await
 browser.storage.local.set({ "gfn-force-refresh": true })` ✅ changes nothing — no code reads
