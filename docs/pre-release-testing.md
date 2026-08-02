@@ -250,6 +250,10 @@ actually matters is the one nobody thinks about.
 - [ ] ✅ Onboarding says the add-on is ready, with the grant framed as optional insurance.
 - [ ] Accept the grant. ✅ The button and the optional paragraph disappear rather than
       becoming a permanent "done" marker.
+- [ ] Reopen onboarding (`about:debugging` → Inspect, or the extension's onboarding URL)
+      now that the grant is held. ✅ The offer is absent from the *first paint* — it must
+      not appear and then vanish once the permission check resolves. Both elements are
+      `hidden` in the markup for this reason; only a real load shows the difference.
 
 **The grant that does matter.** In `about:addons` → the extension → **Permissions**, turn
 off `store.steampowered.com`. Firefox drops to click-to-run rather than blocking outright,

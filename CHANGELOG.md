@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-## [1.0.0] — 2026-07-30
+## [1.0.0] — 2026-08-02
 
 First stable release: the AMO listing drops its **experimental** flag. No new page
 coverage — this release is about surviving and supporting a wider install base.
