@@ -89,7 +89,14 @@ export function isLookupRequest(value: unknown): value is LookupRequest {
 export function isLookupResponse(value: unknown): value is LookupResponse {
   if (!isObject(value)) return false;
   const r = value as Partial<LookupResponse>;
-  return typeof r.ok === "boolean" && typeof r.found === "object" && r.found !== null;
+  // `typeof [] === "object"`, so the array check is doing real work: an array would
+  // pass as `found`, miss on every id, and render a confident "not supported".
+  return (
+    typeof r.ok === "boolean" &&
+    typeof r.found === "object" &&
+    r.found !== null &&
+    !Array.isArray(r.found)
+  );
 }
 
 export function isCatalogStatus(value: unknown): value is CatalogStatus {
