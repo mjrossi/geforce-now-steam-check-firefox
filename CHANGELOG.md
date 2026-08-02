@@ -87,9 +87,12 @@ coverage — this release is about surviving and supporting a wider install base
   delisted entries, and unreleased placeholders.
 - Internal: `resolveBannerLinks` splits store-banner link resolution out of DOM building,
   making the stale-cache degradation matrix directly testable. The refresh success rule,
-  the load coordinator, the wishlist memo, and the store page's retry state machine
-  likewise moved into pure modules (`feed/refresh.ts`, `feed/load-coordinator.ts`,
-  `content/wishlist-memo.ts`) with tests. 85 → 127 tests.
+  the load coordinator, the wishlist memo, the catalog page walk, and the trigger
+  coalescing both content scripts share likewise moved into pure modules
+  (`feed/refresh.ts`, `feed/load-coordinator.ts`, `content/wishlist-memo.ts`,
+  `feed/fetch-catalog.ts`, `shared/coalesce.ts`) with tests. The store page's retry went
+  the other way: it shrank from a tested `store-controller.ts` to six lines inlined in
+  `store.ts`, and is covered by the manual plan rather than a unit test.
 
 ## [0.4.0] — 2026-07-04
 
