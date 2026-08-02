@@ -23,7 +23,9 @@
  *  any number of earlier requests.
  *
  *  If `task` rejects the returned promise rejects with it and the queued run is
- *  skipped; the in-flight flag is still cleared, so the next trigger runs normally.
+ *  skipped. Both flags are cleared either way, so the next trigger runs exactly
+ *  once — leaving `queued` set through a rejection would make the *next* trigger
+ *  run the task twice.
  *
  *  A request that only queues resolves its own caller straight away — the
  *  follow-up is awaited by the run it queued behind. Every call site is
@@ -39,14 +41,14 @@ export function coalesce(task: () => Promise<void>): () => Promise<void> {
       return;
     }
     inFlight = true;
+    let rerun = false;
     try {
       await task();
     } finally {
       inFlight = false;
-    }
-    if (queued) {
+      rerun = queued;
       queued = false;
-      await run();
     }
+    if (rerun) await run();
   };
 }

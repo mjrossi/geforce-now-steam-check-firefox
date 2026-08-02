@@ -104,4 +104,27 @@ describe("coalesce", () => {
     await g.release();
     await second;
   });
+
+  test("a rejecting task clears the queued flag too", async () => {
+    // The queued run is skipped on rejection, but the flag has to go with it:
+    // leaving it set made the *next* trigger run the task a second time, long
+    // after the request that queued it was abandoned.
+    const g = gate();
+    const run = coalesce(g.task);
+    const first = run();
+    void run(); // queues behind the run that is about to fail
+    await g.fail(new Error("boom"));
+    await expect(first).rejects.toThrow("boom");
+    expect(g.calls()).toBe(1); // the queued run was skipped, as documented
+
+    const second = run();
+    expect(g.calls()).toBe(2);
+    await g.release();
+    // Assert before awaiting `second`: a stale flag re-runs the task here, and the
+    // re-run never settles (the gate's resolver has moved on), so awaiting first
+    // would turn a clear "3 calls, expected 2" into a test timeout.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(g.calls()).toBe(2); // not re-run by a flag left over from the failure
+    await second;
+  });
 });
