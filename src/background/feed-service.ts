@@ -98,11 +98,16 @@ const deps: LoadDeps = {
   async fetchFeed() {
     log.info("fetching GeForce NOW catalog…");
     const { apps, pages, truncated } = await fetchAllPages(fetchAppsPage, MAX_PAGES);
+    // A truncated walk is a failed fetch, not a smaller catalog. Using the partial
+    // would cache it with a fresh timestamp and publish an epoch, so every game
+    // past the bound would badge a confident "Not on GeForce NOW" for 12 hours —
+    // the exact failure the mid-walk propagation rule exists to prevent, arrived at
+    // by a different route. Throwing instead hands it to loadIndex's stale-cache
+    // fallback: the previous catalog if there is one, "couldn't check" if not.
     if (truncated) {
-      log.warn(`catalog fetch hit MAX_PAGES (${MAX_PAGES}); using ${apps.length} apps`);
-    } else {
-      log.info(`catalog fetched: ${apps.length} apps across ${pages} page(s)`);
+      throw new Error(`catalog fetch hit MAX_PAGES (${MAX_PAGES}); refusing a partial catalog`);
     }
+    log.info(`catalog fetched: ${apps.length} apps across ${pages} page(s)`);
     return apps;
   },
   now: () => Date.now(),

@@ -16,9 +16,11 @@ export interface CatalogFetch {
   /** How many pages were actually requested. */
   pages: number;
   /** True when the walk stopped at `maxPages` with the cursor still advancing,
-   *  i.e. `apps` is a *partial* catalog. The caller decides what to do with a
-   *  partial (today: use it, and say so in the log) — but it must be able to
-   *  tell, which is why this is returned rather than logged in here. */
+   *  i.e. `apps` is a *partial* catalog. Reported rather than thrown here so the
+   *  walk stays a pure function of its page fetcher; the caller is what decides,
+   *  and `feed-service.ts` rejects on it for the same reason a mid-walk failure
+   *  propagates — a partial cached as whole badges every missing game a confident
+   *  "Not on GeForce NOW". */
   truncated: boolean;
 }
 
