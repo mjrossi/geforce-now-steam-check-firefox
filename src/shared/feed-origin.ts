@@ -23,11 +23,21 @@ export const FEED_ORIGINS = ["https://games.geforce.com/*"];
  *  surfaces them in `about:addons` → Permissions as a user-revocable toggle, and
  *  unlike FEED_ORIGINS they are granted by default.
  *
- *  This is the grant that actually gates the product: revoke it and the content
- *  scripts are never injected, so no badge appears anywhere. The popup checks it
- *  for exactly that reason — reporting "Enabled" off the feed permission alone
- *  would show a green light on a browser where nothing can possibly work. Keep in
- *  sync with the manifest's `content_scripts`. */
+ *  This is the grant that governs whether badges appear *on their own* — but
+ *  revoking it does not disable the add-on. Firefox switches to **click-to-run**,
+ *  injecting the content scripts into the active tab when the user clicks the
+ *  toolbar icon, and everything then works normally. No API distinguishes "only
+ *  when clicked" from a hard block, and `hasStandingSteamAccess()` reads false
+ *  while a click-granted content script is running perfectly well — so this state
+ *  is worded as click-to-run, never as broken (permission.ts spells out why, and
+ *  the add-on shipped once claiming otherwise).
+ *
+ *  The popup checks it because it is the setting that actually changes behaviour:
+ *  reporting "Enabled" off the feed permission alone showed a green light while
+ *  game pages sat bare. It is also mirrored into `optional_host_permissions` so
+ *  `requestSteamAccess()` can offer a one-click way out — `permissions.request`
+ *  rejects an origin the manifest doesn't mark requestable, and a `content_scripts`
+ *  match alone does not count. Keep in sync with both. */
 export const STEAM_ORIGINS = [
   "https://store.steampowered.com/app/*",
   "https://store.steampowered.com/wishlist/*",
