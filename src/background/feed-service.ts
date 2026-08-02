@@ -66,9 +66,15 @@ const TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const DEBUG_KEY = "gfn-debug";
 let debugEnabled = false;
 
-void browser.storage.local.get(DEBUG_KEY).then((stored) => {
-  debugEnabled = stored[DEBUG_KEY] === true;
-});
+void browser.storage.local
+  .get(DEBUG_KEY)
+  .then((stored) => {
+    debugEnabled = stored[DEBUG_KEY] === true;
+  })
+  .catch(() => {
+    // Diagnostics only — a storage read that fails at startup shouldn't surface as
+    // an unhandled rejection in the background console.
+  });
 onLocalKeyChange(DEBUG_KEY, (value) => {
   debugEnabled = value === true;
   log.info(`debug logging ${debugEnabled ? "enabled" : "disabled"}`);
