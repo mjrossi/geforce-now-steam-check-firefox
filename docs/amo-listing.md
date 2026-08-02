@@ -93,6 +93,7 @@ First stable release. This one is about badges being right and staying right, ra
 - Several open Steam tabs no longer each download their own copy of the catalog.
 - Badges now work the moment you install — the catalog permission the welcome page used to insist on turns out not to be needed, and is offered as an optional safeguard instead.
 - If this add-on is set to run on Steam only when clicked, the toolbar icon and popup now say so — and offer a button to switch it to automatic, instead of leaving you to find the setting.
+- Fixed the add-on's icon rendering at the wrong size on the Add-ons Manager page.
 
 Thanks to everyone who tried the beta and filed reports.
 ```
@@ -133,16 +134,22 @@ The extension declares no data collection in its manifest. Questions: https://gi
 Answer **Yes** to the "code generators / minifiers / bundlers" question. esbuild both
 bundles many files into one and transpiles TS→JS, so AMO requires reviewable source.
 
-Generate the source archive (matches the uploaded package; git-ignored files like
-`mise.local.toml` secrets, `node_modules/`, and `dist/` are automatically excluded):
+Generate the source archive (git-ignored files — `mise.local.toml` secrets, `node_modules/`,
+`dist/` — are automatically excluded):
 
 ```bash
-git archive --format=zip --output=web-ext-artifacts/source-<version>.zip HEAD
+just source
 ```
+
+It reads the version from `package.json` and archives the **tag** `v<version>`, not `HEAD`:
+AMO rejects a source archive that doesn't build the uploaded package, and `just package`
+bundles the working tree, so anything but the tag risks two zips that disagree. The recipe
+refuses to run if the tag doesn't exist yet, and warns when `HEAD` has moved past it or the
+working tree is dirty — heed those warnings rather than uploading.
 
 Upload that zip, and paste the build instructions from the reviewer notes below.
 
-> Regenerate the archive after every version bump so the source matches the package.
+> Tag first, then archive. Regenerate after every version bump.
 
 ---
 
@@ -205,9 +212,14 @@ Without mise/just, the equivalent (Node 22.22.3) is:
     node build.mjs
 
 build.mjs bundles five entry points (background, store, wishlist, popup, onboarding)
-as classic IIFE scripts and copies src/manifest.json, icons/, and the HTML pages
-into dist/. There is no minification, no environment variables, and no other
-post-processing; dist/ matches the uploaded package.
+as classic IIFE scripts and copies src/manifest.json, the icon assets from icons/,
+and the HTML pages into dist/. There is no minification, no environment variables,
+and no other post-processing; dist/ matches the uploaded package.
+
+The icon PNGs in icons/ are committed image assets, not build output — nothing
+rasterizes them during the build. icons/README.md records how they were generated
+from icons/icon.svg for future maintenance; it is excluded from the packaged
+extension and is not needed to build.
 
 SOURCE
 https://github.com/mjrossi/geforce-now-steam-check-firefox
@@ -224,7 +236,7 @@ https://github.com/mjrossi/geforce-now-steam-check-firefox
    permission, so the permission flows need a real install to test at all.
 1. Bump version in `src/manifest.json` + `package.json`; update `CHANGELOG.md`; commit + tag.
 2. `just package` → uploadable zip in `web-ext-artifacts/`.
-3. `git archive ... source-<version>.zip HEAD` → source archive.
+3. `just source` → source archive, built from the `v<version>` tag.
 4. AMO → existing add-on → Upload a New Version → **listed** channel.
 5. Upload package zip; answer source-required **Yes**; upload source zip + build instructions.
 6. Fill/confirm listing metadata, screenshots, summary, description, release notes.

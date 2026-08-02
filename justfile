@@ -55,6 +55,34 @@ dev: build
 package: build
     npx web-ext build --source-dir dist --artifacts-dir web-ext-artifacts --overwrite-dest
 
+# source archive for AMO review, built from the tag matching package.json's version
+[group('build')]
+source:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version="$(node -p "require('./package.json').version")"
+    tag="v${version}"
+
+    if ! git rev-parse -q --verify "refs/tags/${tag}^{commit}" >/dev/null; then
+        echo "error: no tag ${tag}. Tag the release before archiving its source," >&2
+        echo "       so the archive can never describe a different tree than the package." >&2
+        exit 1
+    fi
+
+    # `just package` bundles the working tree while this archives the tag. AMO
+    # rejects a source archive that doesn't build the uploaded package, so say so
+    # loudly rather than shipping two zips that disagree.
+    if [ "$(git rev-parse HEAD)" != "$(git rev-parse "${tag}^{commit}")" ]; then
+        echo "warning: HEAD is not ${tag} — rebuild the package from the tag before uploading" >&2
+    fi
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "warning: working tree is dirty — those changes are absent from the archive" >&2
+    fi
+
+    mkdir -p web-ext-artifacts
+    git archive --format=zip --output="web-ext-artifacts/source-${version}.zip" "${tag}"
+    echo "source archive -> web-ext-artifacts/source-${version}.zip (from ${tag})"
+
 # sign for self-distribution via AMO; outputs an installable .xpi to web-ext-artifacts/
 # needs WEB_EXT_API_KEY / WEB_EXT_API_SECRET (see mise.local.toml.example)
 [group('build')]
