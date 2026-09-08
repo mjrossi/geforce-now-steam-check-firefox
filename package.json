@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json"
   },
   "devDependencies": {
-    "@types/firefox-webext-browser": "^120.0.0",
+    "@types/firefox-webext-browser": "^143.0.0",
     "@types/node": "^26.4.0",
     "esbuild": "^0.28.2",
     "jsdom": "^30.0.1",
